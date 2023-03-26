@@ -3226,6 +3226,12 @@ class FM_Zipper
                     $this->zip->close();
                     return false;
                 }
+                // ZIP compression level
+                $zip_compression = 'none'; // none (store), deflate, lzma2 (xz)
+                $zip_compression == 'deflate' ? $c = ZipArchive::CM_DEFLATE : ($zip_compression == 'lzma2' ? $c = ZipArchive::CM_XZ : $c = ZipArchive::CM_STORE);
+                if (method_exists('ZipArchive', 'setCompressionName')) {
+                    $this->zip->setCompressionName($f, $c); // CM_STORE, CM_DEFLATE, CM_XZ
+                }
             }
             $this->zip->close();
             return true;
@@ -3294,6 +3300,12 @@ class FM_Zipper
                         if (!$this->zip->addFile($path . '/' . $file)) {
                             return false;
                         }
+                        // ZIP compression level
+                        $zip_compression = 'none'; // none (store), deflate, lzma2 (xz)
+                        $zip_compression == 'deflate' ? $c = ZipArchive::CM_DEFLATE : ($zip_compression == 'lzma2' ? $c = ZipArchive::CM_XZ : $c = ZipArchive::CM_STORE);
+                        if (method_exists('ZipArchive', 'setCompressionName')) {
+                            $this->zip->setCompressionName($path . '/' . $file, $c); // CM_STORE, CM_DEFLATE, CM_XZ
+                        }
                     }
                 }
             }
@@ -3329,6 +3341,15 @@ class FM_Zipper_Tar
                 $f = fm_clean_path($f);
                 if (!$this->addFileOrDir($f)) {
                     return false;
+                }
+                // TAR compression level
+                $tar_compression = 'none'; // none, zlib (GZ), bz2 (BZ2)
+                $tar_compression == 'zlib' ? $c = Phar::GZ : ($tar_compression == 'bz2' ? $c = Phar::BZ2 : $c = Phar::NONE);
+                if (extension_loaded($tar_compression)) {
+                    $this->tar->compress($c); // NONE, GZ, BZ2
+                    //unlink($filename);
+                    unset($this->tar);
+                    Phar::unlinkArchive($filename);
                 }
             }
             return true;
