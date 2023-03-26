@@ -31,6 +31,14 @@ $auth_users = array(
     'user' => '$2y$10$Fg6Dz8oH9fPoZ2jJan5tZuv6Z4Kp7avtQ9bDfrdRntXtPeiMAZyGO' //12345
 );
 
+// Login 2FA / OTP secrets
+// Generate new secret and QR code on next login
+$generate_secret_on_login = false;
+$otp_secrets = array(
+    'admin' => 'KTF7GCLON2ZHJ3HGEJUX5SN5KN77KQNZ4SH3IMCXDBQOPAFTFDHJEU26',
+    'user' => 'Z22V5EIUX4BES4RMXSAKZT2XJNAS7J7AXDOENQZEQFS6V2X2ODAXH2CF'
+);
+
 // Readonly users
 // e.g. array('users', 'guest', ...)
 $readonly_users = array(
@@ -320,6 +328,37 @@ if ($use_auth) {
         sleep(1);
         if(function_exists('password_verify')) {
             if (isset($auth_users[$_POST['fm_usr']]) && isset($_POST['fm_pwd']) && password_verify($_POST['fm_pwd'], $auth_users[$_POST['fm_usr']]) && verifyToken($_POST['token'])) {
+                // Login with 2FA TOTP
+                if (file_exists('2fa.class.php')) {
+                    require_once('2fa.class.php');
+
+                    // Generate random OTP secret, manually add/replace entry inside '$otp_secrets' array
+                    if ($generate_secret_on_login) {
+                        $random_Base32_InitKey = Google2FA::generate_secret_key(56);
+                        //$qr_gen_api = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&ecc=L&data=otpauth://totp/$_POST[fm_usr]@tinyfilemanager?secret=$random_Base32_InitKey&algorithm=SHA1&digits=6&period=30";
+                        $qr_gen_api = "https://chart.googleapis.com/chart?cht=qr&chs=200x200&chld=L|0&chl=otpauth://totp/$_POST[fm_usr]@tinyfilemanager?secret=$random_Base32_InitKey&algorithm=SHA1&digits=6&period=30";
+                        echo '<h1>New OTP secret generated!</h1>Add the secret below to the <code>$otp_secrets</code> array and scan the QR code to add it to your personal 2FA vault.<br>Before reloading this page, set &nbsp;<code>$generate_secret_on_login = false</code><br><br>';
+                        echo "<code>'$_POST[fm_usr]' => '$random_Base32_InitKey'</code><br></br><img src=\"$qr_gen_api\">";
+                        unset($_SESSION[FM_SESSION_ID]['logged']);
+                        exit;
+                    }
+
+                    // Retrieve secret for user that successfully logged in
+                    $InitalizationKey = $otp_secrets[$_POST['fm_usr']];
+
+                    // Validate OTP
+                    if (isset($_POST['otp'])) {
+                        if (!Google2FA::verify_key($InitalizationKey, $_POST['otp'])) {
+                            unset($_SESSION[FM_SESSION_ID]['logged']);
+                            fm_set_msg(lng('Login failed. Invalid username or password'), 'error');
+                            fm_redirect(FM_ROOT_URL);
+                        }
+                    } else {
+                        unset($_SESSION[FM_SESSION_ID]['logged']);
+                        fm_set_msg(lng('Login failed. Invalid username or password'), 'error');
+                        fm_redirect(FM_ROOT_URL);
+                    }
+                }
                 $_SESSION[FM_SESSION_ID]['logged'] = $_POST['fm_usr'];
                 fm_set_msg(lng('You are logged in'));
                 fm_redirect(FM_ROOT_URL);
@@ -366,6 +405,13 @@ if ($use_auth) {
                                         <label for="fm_pwd" class="pb-2"><?php echo lng('Password'); ?></label>
                                         <input type="password" class="form-control" id="fm_pwd" name="fm_pwd" required>
                                     </div>
+
+                                    <?php if (file_exists('2fa.class.php')) { ?>
+                                    <div class="mb-3">
+                                        <label for="otp" class="pb-2"><?php echo lng('2FA'); ?></label>
+                                        <input type="text" class="form-control" id="otp" name="otp" inputmode="numeric" maxlength="6" pattern="\d{6}" autocomplete="off" required>
+                                    </div>
+                                    <?php } ?>
 
                                     <div class="mb-3">
                                         <?php fm_show_message(); ?>
