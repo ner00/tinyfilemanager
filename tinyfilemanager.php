@@ -770,7 +770,7 @@ if (isset($_GET['copy'], $_GET['finish']) && !FM_READONLY) {
                $loop_count++;
             }
             if (fm_rcopy($from, $fn_duplicate, False)) {
-                fm_set_msg(sprintf('Copyied from <b>%s</b> to <b>%s</b>', fm_enc($copy), fm_enc($fn_duplicate)));
+                fm_set_msg(sprintf('Copied from <b>%s</b> to <b>%s</b>', fm_enc($copy), fm_enc($fn_duplicate)));
             } else {
                 fm_set_msg(sprintf('Error while copying from <b>%s</b> to <b>%s</b>', fm_enc($copy), fm_enc($fn_duplicate)), 'error');
             }
@@ -2847,6 +2847,7 @@ function fm_get_file_icon_class($path)
         case 'mp2':
         case 'm4a':
         case 'aac':
+        case 'opus':
         case 'ogg':
         case 'oga':
         case 'wma':
@@ -2962,7 +2963,7 @@ function fm_get_video_exts()
  */
 function fm_get_audio_exts()
 {
-    return array('wav', 'mp3', 'ogg', 'm4a');
+    return array('wav', 'mp3', 'opus', 'ogg', 'm4a', 'flac', 'aac');
 }
 
 /**
