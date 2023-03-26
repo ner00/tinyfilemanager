@@ -933,6 +933,7 @@ if (isset($_GET['dl'], $_POST['token'])) {
     }
 
     $dl = urldecode($_GET['dl']);
+    if (stripos(pathinfo($_GET['dl'], PATHINFO_FILENAME), '+') !== false) $dl = rawurldecode($_GET['dl']); // if filename has plus sign;
     $dl = fm_clean_path($dl);
     $dl = str_replace('/', '', $dl);
     $path = FM_ROOT_PATH;
@@ -1958,7 +1959,7 @@ if (isset($_GET['edit']) && !FM_READONLY) {
     // Prevent leaving/closing editor if changes are pending
     <script>
     function setFileDirty(status) {
-    	//console.log("setFileDirty", status);
+        //console.log("setFileDirty", status);
         if (status) {
             window.onbeforeunload = function() { return 'Your changes may not be saved.' };
         } else {
