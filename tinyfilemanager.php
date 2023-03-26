@@ -81,9 +81,17 @@ $datetime_format = 'm/d/Y g:i A';
 // e.g. 'txt,html,css,js'
 $allowed_file_extensions = '';
 
+// Not allowed file extensions for create and rename files
+// e.g. 'php,sh,tar'
+$not_allowed_file_extensions = '';
+
 // Allowed file extensions for upload files
 // e.g. 'gif,png,jpg,html,txt'
 $allowed_upload_extensions = '';
+
+// Not allowed file extensions for upload files
+// e.g. 'php,sh,tar'
+$not_allowed_upload_extensions = '';
 
 // Favicon path. This can be either a full url to an .PNG image, or a path based on the document root.
 // full path, e.g http://example.com/favicon.png
@@ -411,7 +419,9 @@ defined('FM_SHOW_HIDDEN') || define('FM_SHOW_HIDDEN', $show_hidden_files);
 defined('FM_ROOT_PATH') || define('FM_ROOT_PATH', $root_path);
 defined('FM_LANG') || define('FM_LANG', $lang);
 defined('FM_FILE_EXTENSION') || define('FM_FILE_EXTENSION', $allowed_file_extensions);
+defined('FM_NOT_FILE_EXTENSION') || define('FM_NOT_FILE_EXTENSION', $not_allowed_file_extensions);
 defined('FM_UPLOAD_EXTENSION') || define('FM_UPLOAD_EXTENSION', $allowed_upload_extensions);
+defined('FM_NOT_UPLOAD_EXTENSION') || define('FM_NOT_UPLOAD_EXTENSION', $not_allowed_upload_extensions);
 defined('FM_EXCLUDE_ITEMS') || define('FM_EXCLUDE_ITEMS', (version_compare(PHP_VERSION, '7.0.0', '<') ? serialize($exclude_items) : $exclude_items));
 defined('FM_DOC_VIEWER') || define('FM_DOC_VIEWER', $online_viewer);
 define('FM_READONLY', $global_readonly || ($use_auth && !empty($readonly_users) && isset($_SESSION[FM_SESSION_ID]['logged']) && in_array($_SESSION[FM_SESSION_ID]['logged'], $readonly_users)));
@@ -474,7 +484,10 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
         $file = $_GET['edit'];
         $file = fm_clean_path($file);
         $file = str_replace('/', '', $file);
-        if ($file == '' || !is_file($path . '/' . $file)) {
+        if ($file == '' || !is_file($path . '/' . $file) 
+            || in_array($file, $GLOBALS['exclude_items'])
+            || in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+        ) {
             fm_set_msg(lng('File not found'), 'error');
             $FM_PATH=FM_PATH; fm_redirect(FM_SELF_URL . '?p=' . urlencode($FM_PATH));
         }
@@ -504,7 +517,10 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
         $newFileName = "{$fileName}-{$date}.bak";
         $fullyQualifiedFileName = $fullPath . $fileName;
         try {
-            if (!file_exists($fullyQualifiedFileName)) {
+            if (!file_exists($fullyQualifiedFileName)
+                || in_array($fileName, $GLOBALS['exclude_items'])
+                || in_array(strtolower(pathinfo($fileName, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+            ) {
                 throw new Exception("File {$fileName} not found");
             }
             if (copy($fullyQualifiedFileName, $fullPath . $newFileName)) {
@@ -601,12 +617,14 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
         $fileinfo->name = trim(basename($url), ".\x00..\x20");
 
         $allowed = (FM_UPLOAD_EXTENSION) ? explode(',', FM_UPLOAD_EXTENSION) : false;
+        $notAllowed = (FM_NOT_UPLOAD_EXTENSION) ? explode(',', FM_NOT_UPLOAD_EXTENSION) : false;
         $ext = strtolower(pathinfo($fileinfo->name, PATHINFO_EXTENSION));
         $isFileAllowed = ($allowed) ? in_array($ext, $allowed) : true;
+        $isFileNotAllowed = ($notAllowed) ? in_array($ext, $notAllowed) : false;
 
         $err = false;
 
-        if(!$isFileAllowed) {
+        if(!$isFileAllowed || $isFileNotAllowed) {
             $err = array("message" => "File extension is not allowed");
             event_callback(array("fail" => $err));
             exit();
@@ -657,7 +675,10 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
 // Delete file / folder
 if (isset($_GET['del'], $_POST['token']) && !FM_READONLY) {
     $del = str_replace( '/', '', fm_clean_path( $_GET['del'] ) );
-    if ($del != '' && $del != '..' && $del != '.' && verifyToken($_POST['token'])) {
+    if ($del != '' && $del != '..' && $del != '.' && verifyToken($_POST['token']) 
+        && !in_array($del, FM_EXCLUDE_ITEMS) 
+        && !in_array(strtolower(pathinfo($del, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+    ) {
         $path = FM_ROOT_PATH;
         if (FM_PATH != '') {
             $path .= '/' . FM_PATH;
@@ -717,7 +738,10 @@ if (isset($_GET['copy'], $_GET['finish']) && !FM_READONLY) {
     $copy = urldecode($_GET['copy']);
     $copy = fm_clean_path($copy);
     // empty path
-    if ($copy == '') {
+    if ($copy == '' 
+        || in_array($copy, FM_EXCLUDE_ITEMS)
+        || in_array(strtolower(pathinfo($copy, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+    ) {
         fm_set_msg(lng('Source path not defined'), 'error');
         $FM_PATH=FM_PATH; fm_redirect(FM_SELF_URL . '?p=' . urlencode($FM_PATH));
     }
@@ -770,7 +794,7 @@ if (isset($_GET['copy'], $_GET['finish']) && !FM_READONLY) {
                $loop_count++;
             }
             if (fm_rcopy($from, $fn_duplicate, False)) {
-                fm_set_msg(sprintf('Copyied from <b>%s</b> to <b>%s</b>', fm_enc($copy), fm_enc($fn_duplicate)));
+                fm_set_msg(sprintf('Copied from <b>%s</b> to <b>%s</b>', fm_enc($copy), fm_enc($fn_duplicate)));
             } else {
                 fm_set_msg(sprintf('Error while copying from <b>%s</b> to <b>%s</b>', fm_enc($copy), fm_enc($fn_duplicate)), 'error');
             }
@@ -815,7 +839,10 @@ if (isset($_POST['file'], $_POST['copy_to'], $_POST['finish'], $_POST['token']) 
     // copy/move
     $errors = 0;
     $files = $_POST['file'];
-    if (is_array($files) && count($files)) {
+    if (is_array($files) && count($files) 
+        && !count(array_intersect(FM_EXCLUDE_ITEMS, $files)) > 0 
+        && !count(array_intersect(getExcludedExtensions(FM_EXCLUDE_ITEMS), parseFilesExtensions($files))) > 0
+    ) {
         foreach ($files as $f) {
             if ($f != '') {
                 $f = fm_clean_path($f);
@@ -869,7 +896,10 @@ if (isset($_POST['rename_from'], $_POST['rename_to'], $_POST['token']) && !FM_RE
     }
     // rename
     if (fm_isvalid_filename($new) && $old != '' && $new != '') {
-        if (fm_rename($path . '/' . $old, $path . '/' . $new)) {
+        if (fm_rename($path . '/' . $old, $path . '/' . $new)
+            && !in_array($old, FM_EXCLUDE_ITEMS) 
+            && !in_array(strtolower(pathinfo($old, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+        ) {
             fm_set_msg(sprintf(lng('Renamed from').' <b>%s</b> '. lng('to').' <b>%s</b>', fm_enc($old), fm_enc($new)));
         } else {
             fm_set_msg(sprintf(lng('Error while renaming from').' <b>%s</b> '. lng('to').' <b>%s</b>', fm_enc($old), fm_enc($new)), 'error');
@@ -893,7 +923,10 @@ if (isset($_GET['dl'], $_POST['token'])) {
     if (FM_PATH != '') {
         $path .= '/' . FM_PATH;
     }
-    if ($dl != '' && is_file($path . '/' . $dl)) {
+    if ($dl != '' && is_file($path . '/' . $dl) 
+        && !in_array($dl, FM_EXCLUDE_ITEMS) 
+        && !in_array(strtolower(pathinfo($dl, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+    ) {
         fm_download_file($path . '/' . $dl, $dl, 1024);
         exit;
     } else {
@@ -929,6 +962,7 @@ if (!empty($_FILES) && !FM_READONLY) {
     $errors = 0;
     $uploads = 0;
     $allowed = (FM_UPLOAD_EXTENSION) ? explode(',', FM_UPLOAD_EXTENSION) : false;
+    $notAllowed = (FM_NOT_UPLOAD_EXTENSION) ? explode(',', FM_NOT_UPLOAD_EXTENSION) : false;
     $response = array (
         'status' => 'error',
         'info'   => 'Oops! Try again'
@@ -938,6 +972,7 @@ if (!empty($_FILES) && !FM_READONLY) {
     $tmp_name = $f['file']['tmp_name'];
     $ext = pathinfo($filename, PATHINFO_FILENAME) != '' ? strtolower(pathinfo($filename, PATHINFO_EXTENSION)) : '';
     $isFileAllowed = ($allowed) ? in_array($ext, $allowed) : true;
+    $isFileNotAllowed = ($notAllowed) ? in_array($ext, $notAllowed) : false;
 
     if(!fm_isvalid_filename($filename) && !fm_isvalid_filename($fullPathInput)) {
         $response = array (
@@ -963,7 +998,7 @@ if (!empty($_FILES) && !FM_READONLY) {
             umask($old);
         }
 
-        if (empty($f['file']['error']) && !empty($tmp_name) && $tmp_name != 'none' && $isFileAllowed) {
+        if (empty($f['file']['error']) && !empty($tmp_name) && $tmp_name != 'none' && $isFileAllowed && !$isFileNotAllowed) {
             if ($chunkTotal){
                 $out = @fopen("{$fullPath}.part", $chunkIndex == 0 ? "wb" : "ab");
                 if ($out) {
@@ -1045,7 +1080,10 @@ if (isset($_POST['group'], $_POST['delete'], $_POST['token']) && !FM_READONLY) {
 
     $errors = 0;
     $files = $_POST['file'];
-    if (is_array($files) && count($files)) {
+    if (is_array($files) && count($files) 
+        && !count(array_intersect(FM_EXCLUDE_ITEMS, $files)) > 0 
+        && !count(array_intersect(getExcludedExtensions(FM_EXCLUDE_ITEMS), parseFilesExtensions($files))) > 0
+    ) {
         foreach ($files as $f) {
             if ($f != '') {
                 $new_path = $path . '/' . $f;
@@ -1096,8 +1134,11 @@ if (isset($_POST['group'], $_POST['token']) && (isset($_POST['zip']) || isset($_
     }
     
     $files = $sanitized_files;
-    
-    if (!empty($files)) {
+
+    if (!empty($files) 
+        && !count(array_intersect(FM_EXCLUDE_ITEMS, $files)) > 0 
+        && !count(array_intersect(getExcludedExtensions(FM_EXCLUDE_ITEMS), parseFilesExtensions($files))) > 0
+    ) {
         chdir($path);
 
         if (count($files) == 1) {
@@ -1369,6 +1410,13 @@ if (isset($_GET['upload']) && !FM_READONLY) {
             acceptedFiles : "<?php echo getUploadExt() ?>",
             init: function () {
                 this.on("sending", function (file, xhr, formData) {
+                    const notAllowedExtensions = "<?php echo $not_allowed_upload_extensions; ?>".split(",");
+                    let file_ext = file.name.split('.').pop();
+                    if (notAllowedExtensions.includes(file_ext)) {
+                        this.cancelUpload(file);file=null;
+                        toast(this.options.dictInvalidFileType);
+                        throw new Error(this.options.dictInvalidFileType);
+                    }
                     let _path = (file.fullPath) ? file.fullPath : file.name;
                     document.getElementById("fullpath").value = _path;
                     xhr.ontimeout = (function() {
@@ -1624,7 +1672,10 @@ if (isset($_GET['view'])) {
     $file = $_GET['view'];
     $file = fm_clean_path($file, false);
     $file = str_replace('/', '', $file);
-    if ($file == '' || !is_file($path . '/' . $file) || in_array($file, $GLOBALS['exclude_items'])) {
+    if ($file == '' || !is_file($path . '/' . $file) 
+        || in_array($file, $GLOBALS['exclude_items'])
+        || in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+    ) {
         fm_set_msg(lng('File not found'), 'error');
         $FM_PATH=FM_PATH; fm_redirect(FM_SELF_URL . '?p=' . urlencode($FM_PATH));
     }
@@ -1822,7 +1873,10 @@ if (isset($_GET['edit']) && !FM_READONLY) {
     $file = $_GET['edit'];
     $file = fm_clean_path($file, false);
     $file = str_replace('/', '', $file);
-    if ($file == '' || !is_file($path . '/' . $file) || in_array($file, $GLOBALS['exclude_items'])) {
+    if ($file == '' || !is_file($path . '/' . $file) 
+        || in_array($file, $GLOBALS['exclude_items'])
+        || in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+    ) {
         fm_set_msg(lng('File not found'), 'error');
         $FM_PATH=FM_PATH; fm_redirect(FM_SELF_URL . '?p=' . urlencode($FM_PATH));
     }
@@ -2253,7 +2307,10 @@ function fm_rdelete($path)
         $ok = true;
         if (is_array($objects)) {
             foreach ($objects as $file) {
-                if ($file != '.' && $file != '..') {
+                if ($file != '.' && $file != '..' 
+                    && !in_array($file, FM_EXCLUDE_ITEMS) 
+                    && !in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+                ) {
                     if (!fm_rdelete($path . '/' . $file)) {
                         $ok = false;
                     }
@@ -2284,7 +2341,10 @@ function fm_rchmod($path, $filemode, $dirmode)
         $objects = scandir($path);
         if (is_array($objects)) {
             foreach ($objects as $file) {
-                if ($file != '.' && $file != '..') {
+                if ($file != '.' && $file != '..' 
+                    && !in_array($file, FM_EXCLUDE_ITEMS) 
+                    && !in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+                ) {
                     if (!fm_rchmod($path . '/' . $file, $filemode, $dirmode)) {
                         return false;
                     }
@@ -2308,11 +2368,13 @@ function fm_rchmod($path, $filemode, $dirmode)
 function fm_is_valid_ext($filename)
 {
     $allowed = (FM_FILE_EXTENSION) ? explode(',', FM_FILE_EXTENSION) : false;
+    $notAllowed = (FM_NOT_FILE_EXTENSION) ? explode(',', FM_NOT_FILE_EXTENSION) : false;
 
     $ext = pathinfo($filename, PATHINFO_EXTENSION);
     $isFileAllowed = ($allowed) ? in_array($ext, $allowed) : true;
+    $isFileNotAllowed = ($notAllowed) ? in_array($ext, $notAllowed) : false;
 
-    return ($isFileAllowed) ? true : false;
+    return ($isFileAllowed && !$isFileNotAllowed) ? true : false;
 }
 
 /**
@@ -2350,7 +2412,10 @@ function fm_rcopy($path, $dest, $upd = true, $force = true)
         $ok = true;
         if (is_array($objects)) {
             foreach ($objects as $file) {
-                if ($file != '.' && $file != '..') {
+                if ($file != '.' && $file != '..' 
+                    && !in_array($file, FM_EXCLUDE_ITEMS) 
+                    && !in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+                ) {
                     if (!fm_rcopy($path . '/' . $file, $dest . '/' . $file)) {
                         $ok = false;
                     }
@@ -2514,6 +2579,54 @@ function fm_is_exclude_items($file) {
     }
     if (!in_array($file, $exclude_items) && !in_array("*.$ext", $exclude_items)) {
         return true;
+    }
+    return false;
+}
+
+/**
+ * Get excluded extensions in exclude list
+ * @param array $exclude_items
+ * @return array with extensions
+ */
+function getExcludedExtensions($exclude_items) {
+    $excluded_extensions = array();
+    foreach($exclude_items as $item) {
+        if (str_contains($item, '*.')) {
+            array_push($excluded_extensions, strtolower(explode('*.', $item)[1]));
+        }
+    }
+    return $excluded_extensions;
+}
+
+/**
+ * Get extensions in file array
+ * @param array $files
+ * @return array with extensions
+ */
+function parseFilesExtensions($files) {
+    $files_extensions = array();
+    foreach($files as $file) {
+        if (str_contains($file, '.')) {
+            array_push($files_extensions, strtolower(pathinfo($file, PATHINFO_EXTENSION)));
+        }
+    }
+    return $files_extensions;
+}
+
+/**
+ * Search exclude list for path matches
+ * @param array $exclude_items
+ * @param array $location
+ * @return bool
+ */
+function searchExcludedPaths($exclude_items, $location) {
+    foreach($exclude_items as $item) {
+        if (preg_match("/\\\\".$item."$/", $location) 
+            || preg_match("/".$item."\\\/", $location)
+            || (!FM_SHOW_HIDDEN && preg_match("/^\\\\[.](.*)/", $location))
+        ) {
+            return true;
+        }
     }
     return false;
 }
@@ -3081,26 +3194,31 @@ function fm_get_file_mimes($extension)
  * @param string $filter
  * @return array|null
  */
- function scan($dir = '', $filter = '') {
+function scan($dir = '', $filter = '') {
     $path = FM_ROOT_PATH.'/'.$dir;
-     if($path) {
-         $ite = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path));
-         $rii = new RegexIterator($ite, "/(" . $filter . ")/i");
+    if($path) {
+        $ite = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path));
+        $rii = new RegexIterator($ite, "/(" . $filter . ")/i");
 
-         $files = array();
-         foreach ($rii as $file) {
-             if (!$file->isDir()) {
-                 $fileName = $file->getFilename();
-                 $location = str_replace(FM_ROOT_PATH, '', $file->getPath());
-                 $files[] = array(
-                     "name" => $fileName,
-                     "type" => "file",
-                     "path" => $location,
-                 );
-             }
-         }
-         return $files;
-     }
+        $files = array();
+        foreach ($rii as $file) {
+            if (!$file->isDir()
+                && !in_array($file, FM_EXCLUDE_ITEMS) 
+                && !in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+                && !searchExcludedPaths(FM_EXCLUDE_ITEMS, str_replace(FM_ROOT_PATH, '', $file->getPath()))
+                && !(!FM_SHOW_HIDDEN && preg_match("/^[.](.*)/", $file->getFilename()))
+            ) {
+                $fileName = $file->getFilename();
+                $location = str_replace(FM_ROOT_PATH, '', $file->getPath());
+                $files[] = array(
+                    "name" => $fileName,
+                    "type" => "file",
+                    "path" => $location,
+                );
+            }
+        }
+        return $files;
+    }
 }
 
 /**
@@ -3249,11 +3367,23 @@ class FM_Zipper
         if ($res !== true) {
             return false;
         }
+        // Custom to filter excluded extensions
+        for ($i = 0; $i < $this->zip->numFiles; $i++) {
+            if(!in_array(strtolower(pathinfo($this->zip->getNameIndex($i), PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))) {
+                if (!$this->zip->extractTo($path, $this->zip->getNameIndex($i))) {
+                    return false;
+                }
+            }
+        }
+        $this->zip->close();
+        return true;
+        /*
         if ($this->zip->extractTo($path)) {
             $this->zip->close();
             return true;
         }
         return false;
+        */
     }
 
     /**
@@ -3284,7 +3414,10 @@ class FM_Zipper
         $objects = scandir($path);
         if (is_array($objects)) {
             foreach ($objects as $file) {
-                if ($file != '.' && $file != '..') {
+                if ($file != '.' && $file != '..' 
+                    && !in_array($file, FM_EXCLUDE_ITEMS) 
+                    && !in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+                ) {
                     if (is_dir($path . '/' . $file)) {
                         if (!$this->addDir($path . '/' . $file)) {
                             return false;
@@ -3387,7 +3520,10 @@ class FM_Zipper_Tar
         $objects = scandir($path);
         if (is_array($objects)) {
             foreach ($objects as $file) {
-                if ($file != '.' && $file != '..') {
+                if ($file != '.' && $file != '..' 
+                    && !in_array($file, FM_EXCLUDE_ITEMS) 
+                    && !in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), getExcludedExtensions(FM_EXCLUDE_ITEMS))
+                ) {
                     if (is_dir($path . '/' . $file)) {
                         if (!$this->addDir($path . '/' . $file)) {
                             return false;
