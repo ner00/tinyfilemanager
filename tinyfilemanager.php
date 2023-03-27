@@ -354,21 +354,21 @@ if ($use_auth) {
                         if (!Google2FA::verify_key($InitalizationKey, $_POST['otp'])) {
                             unset($_SESSION[FM_SESSION_ID]['logged']);
                             fm_set_msg(lng('Login failed. Invalid username or password'), 'error');
-                            fm_redirect(FM_ROOT_URL);
+                            fm_redirect(FM_SELF_URL);
                         }
                     } else {
                         unset($_SESSION[FM_SESSION_ID]['logged']);
                         fm_set_msg(lng('Login failed. Invalid username or password'), 'error');
-                        fm_redirect(FM_ROOT_URL);
+                        fm_redirect(FM_SELF_URL);
                     }
                 }
                 $_SESSION[FM_SESSION_ID]['logged'] = $_POST['fm_usr'];
                 fm_set_msg(lng('You are logged in'));
-                fm_redirect(FM_ROOT_URL);
+                fm_redirect(FM_SELF_URL);
             } else {
                 unset($_SESSION[FM_SESSION_ID]['logged']);
                 fm_set_msg(lng('Login failed. Invalid username or password'), 'error');
-                fm_redirect(FM_ROOT_URL);
+                fm_redirect(FM_SELF_URL);
             }
         } else {
             fm_set_msg(lng('password_hash not supported, Upgrade PHP version'), 'error');;
