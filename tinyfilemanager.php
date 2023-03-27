@@ -3104,7 +3104,7 @@ function fm_get_video_exts()
  */
 function fm_get_audio_exts()
 {
-    return array('wav', 'mp3', 'opus', 'ogg', 'm4a', 'flac', 'aac');
+    return array('wav', 'mp3', 'opus', 'ogg', 'oga', 'm4a', 'flac', 'aac');
 }
 
 /**
