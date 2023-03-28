@@ -1,6 +1,6 @@
 <?php
 //Default Configuration
-$CONFIG = '{"lang":"en","error_reporting":false,"show_hidden":false,"hide_Cols":false,"theme":"light"}';
+$CONFIG = '{"lang":"en","error_reporting":false,"show_hidden":false,"hide_Cols":false,"calc_folder":true,"theme":"light"}';
 
 /**
  * H3K | Tiny File Manager V2.5.3
@@ -197,6 +197,9 @@ $report_errors = isset($cfg->data['error_reporting']) ? $cfg->data['error_report
 
 // Hide Permissions and Owner cols in file-listing
 $hide_Cols = isset($cfg->data['hide_Cols']) ? $cfg->data['hide_Cols'] : true;
+
+// Calculate folder size (slower)
+$calc_folder = isset($cfg->data['calc_folder']) ? $cfg->data['calc_folder'] : true;
 
 // Theme
 $theme = isset($cfg->data['theme']) ? $cfg->data['theme'] : 'light';
@@ -568,7 +571,7 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
 
     // Save Config
     if (isset($_POST['type']) && $_POST['type'] == "settings") {
-        global $cfg, $lang, $report_errors, $show_hidden_files, $lang_list, $hide_Cols, $theme;
+        global $cfg, $lang, $report_errors, $show_hidden_files, $lang_list, $hide_Cols, $calc_folder, $theme;
         $newLng = $_POST['js-language'];
         fm_get_translations([]);
         if (!array_key_exists($newLng, $lang_list)) {
@@ -578,6 +581,7 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
         $erp = isset($_POST['js-error-report']) && $_POST['js-error-report'] == "true" ? true : false;
         $shf = isset($_POST['js-show-hidden']) && $_POST['js-show-hidden'] == "true" ? true : false;
         $hco = isset($_POST['js-hide-cols']) && $_POST['js-hide-cols'] == "true" ? true : false;
+        $caf = isset($_POST['js-calc-folder']) && $_POST['js-calc-folder'] == "true" ? true : false;
         $te3 = $_POST['js-theme-3'];
 
         if ($cfg->data['lang'] != $newLng) {
@@ -599,6 +603,10 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
         if ($cfg->data['hide_Cols'] != $hco) {
             $cfg->data['hide_Cols'] = $hco;
             $hide_Cols = $hco;
+        }
+        if ($cfg->data['calc_folder'] != $caf) {
+            $cfg->data['calc_folder'] = $caf;
+            $calc_folder = $caf;
         }
         if ($cfg->data['theme'] != $te3) {
             $cfg->data['theme'] = $te3;
@@ -1590,6 +1598,15 @@ if (isset($_GET['settings']) && !FM_READONLY) {
                     </div>
 
                     <div class="mb-3 row">
+                        <label for="js-calc-folder" class="col-sm-3 col-form-label"><?php echo lng('Calculate Folder Size') ?></label>
+                        <div class="col-sm-9">
+                            <div class="form-check form-switch">
+                              <input class="form-check-input" type="checkbox" role="switch" id="js-calc-folder" name="js-calc-folder" value="true" <?php echo $calc_folder ? 'checked' : ''; ?> />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
                         <label for="js-3-1" class="col-sm-3 col-form-label"><?php echo lng('Theme') ?></label>
                         <div class="col-sm-5">
                             <select class="form-select w-100" id="js-3-0" name="js-theme-3">
@@ -2173,8 +2190,20 @@ $tableTheme = (FM_THEME == "dark") ? "text-white bg-dark table-dark" : "bg-white
                 $modif_raw = filemtime($path . '/' . $f);
                 $modif = date(FM_DATETIME_FORMAT, $modif_raw);
                 $date_sorting = strtotime(date("F d Y H:i:s.", $modif_raw));
-                $filesize_raw = "";
-                $filesize = lng('Folder');
+                if ($calc_folder) {
+                    $dir_data = fm_get_directoryInfo($path . '/' . $f);
+                    $filesize_raw = $dir_data[0];
+                    $fileCount = $dir_data[1];
+                    $dir_Count = $dir_data[2];
+                    $filesize = fm_get_filesize($filesize_raw);
+                    $dir_info = lng('Folder content').': 
+        '. $dir_Count.     ' '. lng('folders').'
+        '. $fileCount.     ' '. lng('files').'
+        '. $filesize_raw.  ' '. lng('bytes');
+                } else {
+                    $filesize_raw = "";
+                    $filesize = lng('Folder');
+                }
                 $perms = substr(decoct(fileperms($path . '/' . $f)), -4);
                 if (function_exists('posix_getpwuid') && function_exists('posix_getgrgid')) {
                     $owner = posix_getpwuid(fileowner($path . '/' . $f));
@@ -2196,7 +2225,7 @@ $tableTheme = (FM_THEME == "dark") ? "text-white bg-dark table-dark" : "bg-white
                         <div class="filename"><a href="?p=<?php echo urlencode(trim(FM_PATH . '/' . $f, '/')) ?>"><i class="<?php echo $img ?>"></i> <?php echo fm_convert_win(fm_enc($f)) ?>
                             </a><?php echo($is_link ? ' &rarr; <i>' . readlink($path . '/' . $f) . '</i>' : '') ?></div>
                     </td>
-                    <td data-order="a-<?php echo str_pad($filesize_raw, 18, "0", STR_PAD_LEFT);?>">
+                    <td data-order="a-<?php echo str_pad($filesize_raw, 18, "0", STR_PAD_LEFT);?>" <?php if(isset($dir_info)) echo "title=\"$dir_info\""; ?>>
                         <?php echo $filesize; ?>
                     </td>
                     <td data-order="a-<?php echo $date_sorting;?>"><?php echo $modif ?></td>
@@ -2296,7 +2325,8 @@ $tableTheme = (FM_THEME == "dark") ? "text-white bg-dark table-dark" : "bg-white
                 <tfoot>
                     <tr>
                         <td class="gray" colspan="<?php echo (!FM_IS_WIN && !$hide_Cols) ? (FM_READONLY ? '6' :'7') : (FM_READONLY ? '4' : '5') ?>">
-                            <?php echo lng('Disk Free').': <span class="badge text-bg-light border-radius-0">'.fm_get_diskfree().'</span>' ?>
+                            <?php echo lng('Disk Free').': <span class="badge text-bg-light border-radius-0">'.fm_get_filesize(@disk_free_space($path)).'</span>' ?>
+                            <?php echo lng('out of').' <span class="badge text-bg-light border-radius-0">'.fm_get_filesize(@disk_total_space($path)).'</span>'; ?>
                             <?php echo lng('FullSize').': <span class="badge text-bg-light border-radius-0">'.fm_get_filesize($all_files_size).'</span>' ?>
                             <?php echo lng('File').': <span class="badge text-bg-light border-radius-0">'.$num_files.'</span>' ?>
                             <?php echo lng('Folder').': <span class="badge text-bg-light border-radius-0">'.$num_folders.'</span>' ?>
@@ -2725,18 +2755,6 @@ function fm_get_size($file)
 }
 
 /**
- * Get nice disk free space
- * @return string
- */
-function fm_get_diskfree() {
-    $size = (float) disk_free_space('.');
-    $units = array('B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB');
-    $power = ($size > 0) ? floor(log($size, 1024)) : 0;
-    $power = ($power > (count($units) - 1)) ? (count($units) - 1) : $power;
-    return sprintf('%s %s', round($size / pow(1024, $power), 2), $units[$power]);
-}
-
-/**
  * Get nice filesize
  * @param int $size
  * @return string
@@ -2748,6 +2766,30 @@ function fm_get_filesize($size)
     $power = ($size > 0) ? floor(log($size, 1024)) : 0;
     $power = ($power > (count($units) - 1)) ? (count($units) - 1) : $power;
     return sprintf('%s %s', round($size / pow(1024, $power), 2), $units[$power]);
+}
+
+/**
+ * Get directory total size and info
+ * @param string $directory
+ * @return array|string
+ */
+function fm_get_directoryInfo($directory) {
+    global $calc_folder;
+    if ($calc_folder) {
+        $size = 0;
+        $count= 0;
+        $dirCount= -2;
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory)) as $file) {
+            if ($file->isFile()) {
+                $size += $file->getSize();
+                $count++;
+            } else if ($file->isDir()) {
+                $dirCount++;
+            }
+        }
+        return [$size, $count, $dirCount/=2];
+    }
+    return lng('Folder');
 }
 
 /**
