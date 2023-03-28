@@ -1,6 +1,11 @@
 <?php
 // Prevent direct access
-if (stristr($_SERVER["REQUEST_URI"], basename(__FILE__))) die(http_response_code(404));
+if (stristr($_SERVER["REQUEST_URI"], basename(__FILE__))
+|| basename($_SERVER['PHP_SELF']) == basename(__FILE__)
+|| !defined('VERSION')) 
+{
+    die(http_response_code(404));
+}
 /*
  * Single file, terminal like php shell version 0.2.5
  *
@@ -369,12 +374,12 @@ print_external('js-bootstrap');
 <script src="https://unpkg.com/jquery.terminal/js/ascii_table.js"></script>
 <link href="https://unpkg.com/jquery.terminal/css/jquery.terminal.min.css" rel="stylesheet"/>
 <style>
-shell_wrapper {
-    min-height: 100vh;
+#shell_wrapper {
+    min-height: 90vh;
     margin: 0;
 }
 </style>
-<shell_wrapper>
+<div id="shell_wrapper">
 <script>
  jQuery(function($) {
      var config = <?= json_encode(array_merge($config, array('password' => isset($config['password']) && $config['password'] != ''))) ?>;
@@ -724,6 +729,8 @@ shell_wrapper {
                  }
              }, {
                  prompt: function(set) {
+                     // Animate scroll to the bottom of the terminal
+                     $('html,body').animate({ scrollTop: document.getElementById('shell_wrapper').offsetHeight }, 'fast');
                      set(cwd + '# ');
                  },
                  onExit: function() {
@@ -803,7 +810,7 @@ shell_wrapper {
      var init_formatters = $.terminal.defaults.formatters;
      var formatters_stack = [init_formatters];
      // --------------------------------------------------------------------------------------------
-     $('shell_wrapper').terminal(function(password, term) {
+     $('#shell_wrapper').terminal(function(password, term) {
          term.pause();
          $.post('', {action: 'login', password: password}).then(function(data) {
              if (data.error) {
@@ -850,7 +857,7 @@ shell_wrapper {
      });
  });
 </script>
-</shell_wrapper>
+</div>
 <?php 
 }
 

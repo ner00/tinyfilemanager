@@ -1688,7 +1688,7 @@ if (isset($_GET['help'])) {
 
 // Shell
 if (isset($_GET['shell']) && !FM_READONLY) {
-    if (file_exists('jsh_shell.php')) require_once('jsh_shell.php');
+    if (file_exists('jsh_shell.php')) include_once('jsh_shell.php');
 }
 
 // file viewer
