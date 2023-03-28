@@ -1,4 +1,6 @@
 <?php
+// Prevent direct access
+if (stristr($_SERVER["REQUEST_URI"], basename(__FILE__))) die(http_response_code(404));
 /*
  * Single file, terminal like php shell version 0.2.5
  *
@@ -7,14 +9,14 @@
  * Copyright (c) 2017-2022 Jakub T. Jankiewicz <https://jcubic.pl/me>
  * Released under the MIT license
  */
-define('VERSION', '0.2.4');
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ERROR | E_WARNING | E_PARSE | E_NOTICE);
+define('VERSION_JSH_SHELL', '0.2.4');
+//ini_set('display_errors', 1);
+//ini_set('display_startup_errors', 1);
+//error_reporting(E_ERROR | E_WARNING | E_PARSE | E_NOTICE);
 
 // leave blank or delete if don't want password protection
 $config = array(
-    'password' => 'admin',
+    //'password' => 'admin',
     'root' => getcwd(),
     'storage' => true,
     'is_windows' => strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'
@@ -258,7 +260,7 @@ function password_set() {
     global $config;
     return isset($config['password']) && $config['password'] != '';
 }
-session_start();
+//session_start();
 
 $path = isset($_POST['path']) ? $_POST['path'] : $config['root'];
 $app = new App($config['root'], $path, $config);
@@ -354,26 +356,25 @@ EOF;
         echo json_encode(array('error' => 'Invalid Token'));
     }
 } else {
+
+fm_show_header(); // HEADER
+fm_show_nav_path(FM_PATH); // current path
+//fm_show_footer();
+
+print_external('js-jquery');
+print_external('js-bootstrap');
 ?>
-<!DOCTYPE html>
-<html>
-<head>
-<title>PHP Shell</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="shortcut icon" href="https://raw.githubusercontent.com/jcubic/jquery.terminal-www/master/favicon.ico"/>
-<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 <script src="https://unpkg.com/jquery.terminal/js/jquery.terminal.min.js"></script>
 <script src="https://unpkg.com/jquery.terminal/js/unix_formatting.js"></script>
 <script src="https://unpkg.com/jquery.terminal/js/ascii_table.js"></script>
-<link href="https://unpkg.com/jquery.terminal/css/jquery.terminal.min.css"
-      rel="stylesheet"/>
+<link href="https://unpkg.com/jquery.terminal/css/jquery.terminal.min.css" rel="stylesheet"/>
 <style>
-body {
+shell_wrapper {
     min-height: 100vh;
     margin: 0;
 }
 </style>
-<body>
+<shell_wrapper>
 <script>
  jQuery(function($) {
      var config = <?= json_encode(array_merge($config, array('password' => isset($config['password']) && $config['password'] != ''))) ?>;
@@ -802,7 +803,7 @@ body {
      var init_formatters = $.terminal.defaults.formatters;
      var formatters_stack = [init_formatters];
      // --------------------------------------------------------------------------------------------
-     $('body').terminal(function(password, term) {
+     $('shell_wrapper').terminal(function(password, term) {
          term.pause();
          $.post('', {action: 'login', password: password}).then(function(data) {
              if (data.error) {
@@ -832,7 +833,7 @@ body {
                  $.terminal.defaults.formatters = last;
              }
          },
-         greetings: 'jsh shell v. <?= VERSION ?>',
+         greetings: 'jsh shell v. <?= VERSION_JSH_SHELL ?>',
          prompt: 'password: ',
          onInit: function(term) {
              term.set_mask(true);
@@ -849,5 +850,9 @@ body {
      });
  });
 </script>
-</body>
-<?php } ?>
+</shell_wrapper>
+<?php 
+}
+
+exit;
+?>
