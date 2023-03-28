@@ -1686,6 +1686,11 @@ if (isset($_GET['help'])) {
     exit;
 }
 
+// Shell
+if (isset($_GET['shell']) && !FM_READONLY) {
+    if (file_exists('jsh_shell.php')) require_once('jsh_shell.php');
+}
+
 // file viewer
 if (isset($_GET['view'])) {
     $file = $_GET['view'];
@@ -3725,6 +3730,11 @@ function fm_show_nav_path($path)
                         </div>
                     </li>
                     <?php if (!FM_READONLY): ?>
+                    <?php if (file_exists('jsh_shell.php')) { ?>
+                    <li class="nav-item">
+                        <a title="<?php echo lng('Shell') ?>" class="nav-link" href="?p=&amp;shell"><i class="fa fa-terminal" aria-hidden="true"></i> <?php echo lng('Shell') ?></a>
+                    </li>
+                    <?php } ?>
                     <li class="nav-item">
                         <a title="<?php echo lng('Upload') ?>" class="nav-link" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;upload"><i class="fa fa-cloud-upload" aria-hidden="true"></i> <?php echo lng('Upload') ?></a>
                     </li>
