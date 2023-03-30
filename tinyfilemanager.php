@@ -3730,17 +3730,17 @@ function fm_show_nav_path($path)
                         </div>
                     </li>
                     <?php if (!FM_READONLY): ?>
-                    <?php if (file_exists('jsh_shell.php')) { ?>
-                    <li class="nav-item">
-                        <a title="<?php echo lng('Shell') ?>" class="nav-link" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;shell"><i class="fa fa-terminal" aria-hidden="true"></i> <?php echo lng('Shell') ?></a>
-                    </li>
-                    <?php } ?>
                     <li class="nav-item">
                         <a title="<?php echo lng('Upload') ?>" class="nav-link" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;upload"><i class="fa fa-cloud-upload" aria-hidden="true"></i> <?php echo lng('Upload') ?></a>
                     </li>
                     <li class="nav-item">
                         <a title="<?php echo lng('NewItem') ?>" class="nav-link" href="#createNewItem" data-bs-toggle="modal" data-bs-target="#createNewItem"><i class="fa fa-plus-square"></i> <?php echo lng('NewItem') ?></a>
                     </li>
+                    <?php if (file_exists('jsh_shell.php')) { ?>
+                    <li class="nav-item">
+                        <a title="<?php echo lng('Shell') ?>" class="nav-link" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;shell"><i class="fa fa-terminal" aria-hidden="true"></i> <?php echo lng('Shell') ?></a>
+                    </li>
+                    <?php } ?>
                     <?php endif; ?>
                     <?php if (FM_USE_AUTH): ?>
                     <li class="nav-item avatar dropdown">
