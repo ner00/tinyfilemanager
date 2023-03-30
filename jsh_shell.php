@@ -400,7 +400,8 @@ print_external('js-bootstrap');
 <script>
  jQuery(function($) {
      var config = <?= json_encode(array_merge($config, array('password' => isset($config['password']) && $config['password'] != ''))) ?>;
-     var cwd = config.root;
+     //var cwd = config.root;
+     var cwd = <?php if (isset($_GET['p'])) echo "'$_SERVER[DOCUMENT_ROOT]/$_GET[p]'"; else echo 'config.root'; ?>;
      // --------------------------------------------------------------------------------------------
      function init(term, token) {
          function sql_result(result) {

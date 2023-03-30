@@ -1,6 +1,6 @@
 <?php
 //Default Configuration
-$CONFIG = '{"lang":"en","error_reporting":false,"show_hidden":false,"hide_Cols":false,"calc_folder":true,"theme":"light"}';
+$CONFIG = '{"lang":"en","error_reporting":false,"show_hidden":false,"hide_Cols":false,"calc_folder":false,"theme":"light"}';
 
 /**
  * H3K | Tiny File Manager V2.5.3
@@ -3732,7 +3732,7 @@ function fm_show_nav_path($path)
                     <?php if (!FM_READONLY): ?>
                     <?php if (file_exists('jsh_shell.php')) { ?>
                     <li class="nav-item">
-                        <a title="<?php echo lng('Shell') ?>" class="nav-link" href="?p=&amp;shell"><i class="fa fa-terminal" aria-hidden="true"></i> <?php echo lng('Shell') ?></a>
+                        <a title="<?php echo lng('Shell') ?>" class="nav-link" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;shell"><i class="fa fa-terminal" aria-hidden="true"></i> <?php echo lng('Shell') ?></a>
                     </li>
                     <?php } ?>
                     <li class="nav-item">
