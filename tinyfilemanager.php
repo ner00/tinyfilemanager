@@ -1865,8 +1865,9 @@ if (isset($_GET['view'])) {
             } elseif ($is_csv) {
                 $tableTheme = (FM_THEME == "dark") ? "text-white bg-dark table-dark" : "bg-white";
                 echo '<table class="table table-hover table-sm table-striped ' . $tableTheme .'">';
+                $csvDelimiter = getCsvDelimiter($file_path);
                 $csvFilePointer = fopen($file_path, 'r');
-                while (($csvRow = fgetcsv($csvFilePointer)) !== false) {
+                while (($csvRow = fgetcsv($csvFilePointer, 0, $csvDelimiter)) !== false) {
                     echo '<tr><td>'. implode('</td><td>', $csvRow). '</td></tr>';
                 }
                 echo '</table>';
@@ -3381,6 +3382,40 @@ function fm_get_theme() {
         $result = "text-white bg-dark";
     }
     return $result;
+}
+
+/**
+ * Check the first $checkLines of a CSV for a potential delimiter.
+ * @param string $filePath
+ * @param int $checkLines
+ * @return string
+ */
+function getCsvDelimiter($filePath, $checkLines = 3) {
+    $delimiters =[",", ";", "\t"];
+    $default =",";
+    $fileObject = new \SplFileObject($filePath);
+    $results = [];
+    $counter = 0;
+    while ($fileObject->valid() && $counter <= $checkLines) {
+        $line = $fileObject->fgets();
+        foreach ($delimiters as $delimiter) {
+            $fields = explode($delimiter, $line);
+            $totalFields = count($fields);
+            if ($totalFields > 1) {
+                if (!empty($results[$delimiter])) {
+                    $results[$delimiter] += $totalFields;
+                } else {
+                    $results[$delimiter] = $totalFields;
+                }
+            }
+        }
+        $counter++;
+    }
+    if (!empty($results)) {
+        $results = array_keys($results, max($results));
+        return $results[0];
+    }
+    return $default;
 }
 
 /**
