@@ -1211,7 +1211,7 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
         fm_set_msg(lng('File not found'), 'error');
     }
 
-    if (($ext == "zip" && !class_exists('ZipArchive')) || ($ext == "tar" && !class_exists('PharData'))) {
+    if (($ext == "zip" && !class_exists('ZipArchive')) || ($ext == "tar" && !class_exists('PharData')) || ($ext == "gz" && !extension_loaded('zlib'))) {
         fm_set_msg(lng('Operations with archives are not available'), 'error');
         $FM_PATH=FM_PATH; fm_redirect(FM_SELF_URL . '?p=' . urlencode($FM_PATH));
     }
@@ -1221,6 +1221,7 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
         $tofolder = '';
         if (isset($_POST['tofolder'])) {
             $tofolder = pathinfo($zip_path, PATHINFO_FILENAME);
+            $tofolder = str_replace('.tar', '', $tofolder);
             if (fm_mkdir($path . '/' . $tofolder, true)) {
                 $path .= '/' . $tofolder;
             }
@@ -1241,6 +1242,16 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
                 //TODO:: need to handle the error
                 $res = true;
             }
+        } elseif ($ext == "gz") {
+            $buffer_size = 4096;
+            $out_file_name = pathinfo($zip_path, PATHINFO_FILENAME);
+            $file = gzopen($zip_path, 'rb');
+            $out_file = fopen($path . '/' . $out_file_name, 'wb'); 
+            while (!gzeof($file)) {
+                fwrite($out_file, gzread($file, $buffer_size));
+            }
+            gzclose($file);
+            $res = fclose($out_file);
         }
 
         if ($res) {
@@ -1729,7 +1740,7 @@ if (isset($_GET['view'])) {
     if($online_viewer && $online_viewer !== 'false' && in_array($ext, fm_get_onlineViewer_exts())){
         $is_onlineViewer = true;
     }
-    elseif ($ext == 'zip' || $ext == 'tar') {
+    elseif ($ext == 'zip' || $ext == 'tar' || $ext == 'gz') {
         $is_zip = true;
         $view_title = 'Archive';
         $filenames = fm_get_zif_info($file_path, $ext);
@@ -2853,6 +2864,18 @@ function fm_get_zif_info($path, $ext) {
                 'filesize' => $zip_info->getSize(),
                 'compressed_size' => $file->getCompressedSize(),
                 'folder' => $zip_folder
+            );
+        }
+        return $filenames;
+    } elseif($ext == 'gz' && function_exists('gzfile')) {
+        $archive = gzfile($path);
+        $filenames = array();
+        foreach ($archive as $file) {
+            $filenames[] = array(
+                'name' => $file,
+                'filesize' => null,
+                'compressed_size' => null,
+                'folder' => null
             );
         }
         return $filenames;
