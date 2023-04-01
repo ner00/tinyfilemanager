@@ -1172,7 +1172,7 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
         if($ext == "zip") {
             $zipper = new FM_Zipper();
             $res = $zipper->unzip($zip_path, $path);
-        } elseif ($ext == "tar" || substr($zip_path, -6) == "tar.gz") {
+        } elseif ($ext == "tar" || substr($zip_path, -7) == ".tar.gz") {
             try {
                 $gzipper = new PharData($zip_path);
                 if (@$gzipper->extractTo($path,null, true)) {
@@ -2661,7 +2661,7 @@ function fm_get_zif_info($path, $ext) {
             @zip_close($arch);
             return $filenames;
         }
-    } elseif(($ext == 'tar' || substr($path, -6) == 'tar.gz') && class_exists('PharData')) {
+    } elseif(($ext == 'tar' || substr($path, -7) == '.tar.gz') && class_exists('PharData')) {
         $archive = new PharData($path);
         $filenames = array();
         foreach(new RecursiveIteratorIterator($archive) as $file) {
