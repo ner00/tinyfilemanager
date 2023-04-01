@@ -1172,7 +1172,7 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
         if($ext == "zip") {
             $zipper = new FM_Zipper();
             $res = $zipper->unzip($zip_path, $path);
-        } elseif ($ext == "tar") {
+        } elseif ($ext == "tar" || substr($zip_path, -6) == "tar.gz") {
             try {
                 $gzipper = new PharData($zip_path);
                 if (@$gzipper->extractTo($path,null, true)) {
@@ -2661,31 +2661,47 @@ function fm_get_zif_info($path, $ext) {
             @zip_close($arch);
             return $filenames;
         }
-    } elseif($ext == 'tar' && class_exists('PharData')) {
+    } elseif(($ext == 'tar' || substr($path, -6) == 'tar.gz') && class_exists('PharData')) {
         $archive = new PharData($path);
         $filenames = array();
         foreach(new RecursiveIteratorIterator($archive) as $file) {
             $parent_info = $file->getPathInfo();
             $zip_name = str_replace("phar://".$path, '', $file->getPathName());
             $zip_name = substr($zip_name, ($pos = strpos($zip_name, '/')) !== false ? $pos + 1 : 0);
-            $zip_folder = $parent_info->getFileName();
+            //$zip_folder = $parent_info->getFileName(); // not working for some reason
+            $zip_folder = pathinfo($zip_name, PATHINFO_DIRNAME); // get folder from path
+            if(!in_array($zip_folder, array_column($filenames, 'folder'))) {
+                $filenames [] = array_merge($filenames, array( // push folder into array
+                    'name' => $zip_folder,
+                    'filesize' => null,
+                    'compressed_size' => null,
+                    'folder' => $zip_folder
+                ));
+            }
             $zip_info = new SplFileInfo($file);
             $filenames[] = array(
                 'name' => $zip_name,
                 'filesize' => $zip_info->getSize(),
                 'compressed_size' => $file->getCompressedSize(),
-                'folder' => $zip_folder
+                'folder' => null //$zip_folder
             );
         }
         return $filenames;
     } elseif($ext == 'gz' && function_exists('gzfile')) {
+        if($gzp = fopen($path, 'r')) { // Get uncompressed filesize
+            fseek($gzp, -4, SEEK_END);
+            if(strlen($datum = @fread($gzp, 4))==4) {
+                extract(unpack('Vgzfs', $datum));
+            }
+            fclose($gzp);
+        }
         $archive = gzfile($path);
         $filenames = array();
-        foreach ($archive as $file) {
+        foreach ($archive as $file) { // Get "files" in archive
             $filenames[] = array(
                 'name' => $file,
-                'filesize' => null,
-                'compressed_size' => null,
+                'filesize' => $gzfs,
+                'compressed_size' => $gzfs,
                 'folder' => null
             );
         }
