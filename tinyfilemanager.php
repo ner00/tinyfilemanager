@@ -1211,7 +1211,11 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
         fm_set_msg(lng('File not found'), 'error');
     }
 
-    if (($ext == "zip" && !class_exists('ZipArchive')) || (($ext == "tar" || $ext == "tgz" || substr($zip_path, -7) == ".tar.gz") && !class_exists('PharData')) || ($ext == "gz" && !extension_loaded('zlib'))) {
+    if (($ext == "zip" && !class_exists('ZipArchive')) 
+    || (($ext == "tar" || $ext == "tgz" || substr($zip_path, -7) == ".tar.gz") && !class_exists('PharData')) 
+    || ($ext == "gz" && !extension_loaded('zlib'))
+    || ($ext == "bz2" && !extension_loaded('bz2'))
+    ) {
         fm_set_msg(lng('Operations with archives are not available'), 'error');
         $FM_PATH=FM_PATH; fm_redirect(FM_SELF_URL . '?p=' . urlencode($FM_PATH));
     }
@@ -1246,12 +1250,24 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
             $buffer_size = 4096;
             $out_file_name = pathinfo($zip_path, PATHINFO_FILENAME);
             $file = gzopen($zip_path, 'rb');
-            $out_file = fopen($path . '/' . $out_file_name, 'wb'); 
-            while (!gzeof($file)) {
-                fwrite($out_file, gzread($file, $buffer_size));
+            if($out_file = fopen($path . '/' . $out_file_name, 'wb')) {
+                while (!gzeof($file)) {
+                    fwrite($out_file, gzread($file, $buffer_size));
+                }
+                gzclose($file);
+                $res = fclose($out_file);
             }
-            gzclose($file);
-            $res = fclose($out_file);
+        } elseif ($ext == "bz2") {
+            $buffer_size = 4096;
+            $out_file_name = pathinfo($zip_path, PATHINFO_FILENAME);
+            $file = bzopen($zip_path, 'r');
+            $out_file = $path . '/' . $out_file_name; 
+            $uncompressed = '';
+            while (!feof($file)) {
+                $uncompressed .= bzread($file, $buffer_size);
+            }
+            bzclose($file);
+            $res = file_put_contents($out_file, $uncompressed);
         }
 
         if ($res) {
@@ -1740,7 +1756,7 @@ if (isset($_GET['view'])) {
     if($online_viewer && $online_viewer !== 'false' && in_array($ext, fm_get_onlineViewer_exts())){
         $is_onlineViewer = true;
     }
-    elseif ($ext == 'zip' || $ext == 'tar' || $ext == 'tgz' || $ext == 'gz') {
+    elseif ($ext == 'zip' || $ext == 'tar' || $ext == 'tgz' || $ext == 'gz' || $ext == 'bz2') {
         $is_zip = true;
         $view_title = 'Archive';
         $filenames = fm_get_zif_info($file_path, $ext);
@@ -2889,6 +2905,15 @@ function fm_get_zif_info($path, $ext) {
             'name' => pathinfo($path, PATHINFO_FILENAME),
             'filesize' => $gzfs,
             'compressed_size' => $gzfs,
+            'folder' => null
+        );
+        return $filenames;
+    } elseif($ext == 'bz2') {
+        $filenames = array();
+        $filenames[] = array(
+            'name' => pathinfo($path, PATHINFO_FILENAME),
+            'filesize' => null,
+            'compressed_size' => null,
             'folder' => null
         );
         return $filenames;
