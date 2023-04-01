@@ -1230,7 +1230,7 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
         if($ext == "zip") {
             $zipper = new FM_Zipper();
             $res = $zipper->unzip($zip_path, $path);
-        } elseif ($ext == "tar" || substr($zip_path, -7) == ".tar.gz") {
+        } elseif ($ext == "tar" || $ext == "tgz" || substr($zip_path, -7) == ".tar.gz") {
             try {
                 $gzipper = new PharData($zip_path);
                 if (@$gzipper->extractTo($path,null, true)) {
@@ -1740,7 +1740,7 @@ if (isset($_GET['view'])) {
     if($online_viewer && $online_viewer !== 'false' && in_array($ext, fm_get_onlineViewer_exts())){
         $is_onlineViewer = true;
     }
-    elseif ($ext == 'zip' || $ext == 'tar' || $ext == 'gz') {
+    elseif ($ext == 'zip' || $ext == 'tar' || $ext == 'tgz' || $ext == 'gz') {
         $is_zip = true;
         $view_title = 'Archive';
         $filenames = fm_get_zif_info($file_path, $ext);
@@ -2850,7 +2850,7 @@ function fm_get_zif_info($path, $ext) {
             @zip_close($arch);
             return $filenames;
         }
-    } elseif(($ext == 'tar' || substr($path, -7) == '.tar.gz') && class_exists('PharData')) {
+    } elseif(($ext == 'tar' || $ext == 'tgz' || substr($path, -7) == '.tar.gz') && class_exists('PharData')) {
         $archive = new PharData($path);
         $filenames = array();
         foreach(new RecursiveIteratorIterator($archive) as $file) {
@@ -3049,6 +3049,7 @@ function fm_get_file_icon_class($path)
         case 'rar':
         case 'gz':
         case 'tar':
+        case 'tgz':
         case '7z':
         case 'xz':
             $img = 'fa fa-file-archive-o';
