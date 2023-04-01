@@ -1211,7 +1211,7 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
         fm_set_msg(lng('File not found'), 'error');
     }
 
-    if (($ext == "zip" && !class_exists('ZipArchive')) || ($ext == "tar" && !class_exists('PharData')) || ($ext == "gz" && !extension_loaded('zlib'))) {
+    if (($ext == "zip" && !class_exists('ZipArchive')) || (($ext == "tar" || $ext == "tgz" || substr($zip_path, -7) == ".tar.gz") && !class_exists('PharData')) || ($ext == "gz" && !extension_loaded('zlib'))) {
         fm_set_msg(lng('Operations with archives are not available'), 'error');
         $FM_PATH=FM_PATH; fm_redirect(FM_SELF_URL . '?p=' . urlencode($FM_PATH));
     }
