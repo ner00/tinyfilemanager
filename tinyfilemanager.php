@@ -2876,7 +2876,7 @@ function fm_get_zif_info($path, $ext) {
             );
         }
         return $filenames;
-    } elseif($ext == 'gz' && function_exists('gzfile')) {
+    } elseif($ext == 'gz') {
         if($gzp = fopen($path, 'r')) { // Get uncompressed filesize
             fseek($gzp, -4, SEEK_END);
             if(strlen($datum = @fread($gzp, 4))==4) {
@@ -2884,16 +2884,13 @@ function fm_get_zif_info($path, $ext) {
             }
             fclose($gzp);
         }
-        $archive = gzfile($path);
         $filenames = array();
-        foreach ($archive as $file) { // Get "files" in archive
-            $filenames[] = array(
-                'name' => $file,
-                'filesize' => $gzfs,
-                'compressed_size' => $gzfs,
-                'folder' => null
-            );
-        }
+        $filenames[] = array(
+            'name' => pathinfo($path, PATHINFO_FILENAME),
+            'filesize' => $gzfs,
+            'compressed_size' => $gzfs,
+            'folder' => null
+        );
         return $filenames;
     }
     return false;
