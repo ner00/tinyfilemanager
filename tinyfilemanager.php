@@ -1,6 +1,6 @@
 <?php
 //Default Configuration
-$CONFIG = '{"lang":"en","error_reporting":false,"show_hidden":false,"hide_Cols":false,"calc_folder":false,"theme":"light"}';
+$CONFIG = '{"lang":"en","error_reporting":false,"show_hidden":false,"hide_Cols":false,"csv_as_table":true,"calc_folder":false,"zip_compression":"0","theme":"light"}';
 
 /**
  * H3K | Tiny File Manager V2.5.3
@@ -109,9 +109,6 @@ $exclude_items = array();
 // false => disable online doc viewer
 $online_viewer = 'google';
 
-// Display CSV files as HTML table
-$display_csv_as_table = true;
-
 // Sticky Nav bar
 // true => enable sticky header
 // false => disable sticky header
@@ -198,8 +195,16 @@ $report_errors = isset($cfg->data['error_reporting']) ? $cfg->data['error_report
 // Hide Permissions and Owner cols in file-listing
 $hide_Cols = isset($cfg->data['hide_Cols']) ? $cfg->data['hide_Cols'] : true;
 
+// Display CSV files as HTML table
+$csv_as_table = isset($cfg->data['csv_as_table']) ? $cfg->data['csv_as_table'] : true;
+
 // Calculate folder size (slower)
 $calc_folder = isset($cfg->data['calc_folder']) ? $cfg->data['calc_folder'] : true;
+
+// ZIP compression
+$zip_compression = isset($cfg->data['zip_compression']) ? $cfg->data['zip_compression'] : '0';
+
+define('FM_ZIP_COMPRESSION', $zip_compression);
 
 // Theme
 $theme = isset($cfg->data['theme']) ? $cfg->data['theme'] : 'light';
@@ -571,7 +576,7 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
 
     // Save Config
     if (isset($_POST['type']) && $_POST['type'] == "settings") {
-        global $cfg, $lang, $report_errors, $show_hidden_files, $lang_list, $hide_Cols, $calc_folder, $theme;
+        global $cfg, $lang, $report_errors, $show_hidden_files, $lang_list, $hide_Cols, $csv_as_table, $calc_folder, $zip_compression, $theme;
         $newLng = $_POST['js-language'];
         fm_get_translations([]);
         if (!array_key_exists($newLng, $lang_list)) {
@@ -581,7 +586,9 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
         $erp = isset($_POST['js-error-report']) && $_POST['js-error-report'] == "true" ? true : false;
         $shf = isset($_POST['js-show-hidden']) && $_POST['js-show-hidden'] == "true" ? true : false;
         $hco = isset($_POST['js-hide-cols']) && $_POST['js-hide-cols'] == "true" ? true : false;
+        $cat = isset($_POST['js-csv-as-table']) && $_POST['js-csv-as-table'] == "true" ? true : false;
         $caf = isset($_POST['js-calc-folder']) && $_POST['js-calc-folder'] == "true" ? true : false;
+        $zco = $_POST['js-zip-compression'];
         $te3 = $_POST['js-theme-3'];
 
         if ($cfg->data['lang'] != $newLng) {
@@ -604,9 +611,17 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
             $cfg->data['hide_Cols'] = $hco;
             $hide_Cols = $hco;
         }
+        if ($cfg->data['csv_as_table'] != $cat) {
+            $cfg->data['csv_as_table'] = $cat;
+            $csv_as_table = $cat;
+        }
         if ($cfg->data['calc_folder'] != $caf) {
             $cfg->data['calc_folder'] = $caf;
             $calc_folder = $caf;
+        }
+        if ($cfg->data['zip_compression'] != $zco) {
+            $cfg->data['zip_compression'] = $zco;
+            $zip_compression = $zco;
         }
         if ($cfg->data['theme'] != $te3) {
             $cfg->data['theme'] = $te3;
@@ -1212,7 +1227,7 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
     }
 
     if (($ext == "zip" && !class_exists('ZipArchive')) 
-    || (($ext == "tar" || $ext == "tgz" || substr($zip_path, -7) == ".tar.gz") && !class_exists('PharData')) 
+    || (($ext == "tar" || $ext == "tgz" || substr($zip_path, -7) == ".tar.gz" || substr($zip_path, -8) == ".tar.bz2") && !class_exists('PharData')) 
     || ($ext == "gz" && !extension_loaded('zlib'))
     || ($ext == "bz2" && !extension_loaded('bz2'))
     ) {
@@ -1234,7 +1249,7 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
         if($ext == "zip") {
             $zipper = new FM_Zipper();
             $res = $zipper->unzip($zip_path, $path);
-        } elseif ($ext == "tar" || $ext == "tgz" || substr($zip_path, -7) == ".tar.gz") {
+        } elseif ($ext == "tar" || $ext == "tgz" || substr($zip_path, -7) == ".tar.gz" || substr($zip_path, -8) == ".tar.bz2") {
             try {
                 $gzipper = new PharData($zip_path);
                 if (@$gzipper->extractTo($path,null, true)) {
@@ -1625,11 +1640,31 @@ if (isset($_GET['settings']) && !FM_READONLY) {
                     </div>
 
                     <div class="mb-3 row">
+                        <label for="js-csv-as-table" class="col-sm-3 col-form-label"><?php echo lng('Display CSV as table') ?></label>
+                        <div class="col-sm-9">
+                            <div class="form-check form-switch">
+                              <input class="form-check-input" type="checkbox" role="switch" id="js-csv-as-table" name="js-csv-as-table" value="true" <?php echo $csv_as_table ? 'checked' : ''; ?> />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
                         <label for="js-calc-folder" class="col-sm-3 col-form-label"><?php echo lng('Calculate Folder Size') ?></label>
                         <div class="col-sm-9">
                             <div class="form-check form-switch">
                               <input class="form-check-input" type="checkbox" role="switch" id="js-calc-folder" name="js-calc-folder" value="true" <?php echo $calc_folder ? 'checked' : ''; ?> />
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label for="js-zip-compression" class="col-sm-3 col-form-label"><?php echo lng('ZIP compression') ?></label>
+                        <div class="col-sm-5">
+                            <select class="form-select w-100" id="js-zip-compression" name="js-zip-compression">
+                                <option value='0' <?php if($zip_compression == "0"){echo "selected";} ?>><?php echo lng('None') ?></option>
+                                <option value='1' <?php if($zip_compression == "1"){echo "selected";} ?>><?php echo lng('Default') ?></option>
+                                <option value='2' <?php if($zip_compression == "2"){echo "selected";} ?>><?php echo lng('High') ?></option>
+                            </select>
                         </div>
                     </div>
 
@@ -1769,9 +1804,9 @@ if (isset($_GET['view'])) {
     } elseif (in_array($ext, fm_get_video_exts())) {
         $is_video = true;
         $view_title = 'Video';
-    } elseif ($display_csv_as_table && $ext == 'csv') {
+    } elseif ($csv_as_table && $ext == 'csv') {
         $is_csv = true;
-        $view_title = "CSV File";
+        $view_title = "CSV Table";
     } elseif (in_array($ext, fm_get_text_exts()) || substr($mime_type, 0, 4) == 'text' || in_array($mime_type, fm_get_text_mimes())) {
         $is_text = true;
         $content = file_get_contents($file_path);
@@ -2866,7 +2901,7 @@ function fm_get_zif_info($path, $ext) {
             @zip_close($arch);
             return $filenames;
         }
-    } elseif(($ext == 'tar' || $ext == 'tgz' || substr($path, -7) == '.tar.gz') && class_exists('PharData')) {
+    } elseif(($ext == 'tar' || $ext == 'tgz' || substr($path, -7) == '.tar.gz' || substr($path, -8) == '.tar.bz2') && class_exists('PharData')) {
         $archive = new PharData($path);
         $filenames = array();
         foreach(new RecursiveIteratorIterator($archive) as $file) {
@@ -3511,9 +3546,8 @@ class FM_Zipper
                     $this->zip->close();
                     return false;
                 }
-                // ZIP compression level
-                $zip_compression = 'none'; // none (store), deflate, lzma2 (xz)
-                $zip_compression == 'deflate' ? $c = ZipArchive::CM_DEFLATE : ($zip_compression == 'lzma2' ? $c = ZipArchive::CM_XZ : $c = ZipArchive::CM_STORE);
+                // ZIP compression level | '0': none (store), '1': deflate, '2': lzma2 (xz)
+                FM_ZIP_COMPRESSION == '1' ? $c = ZipArchive::CM_DEFLATE : (FM_ZIP_COMPRESSION == '2' ? $c = ZipArchive::CM_XZ : $c = ZipArchive::CM_STORE);
                 if (method_exists('ZipArchive', 'setCompressionName')) {
                     $this->zip->setCompressionName($f, $c); // CM_STORE, CM_DEFLATE, CM_XZ
                 }
@@ -3585,9 +3619,8 @@ class FM_Zipper
                         if (!$this->zip->addFile($path . '/' . $file)) {
                             return false;
                         }
-                        // ZIP compression level
-                        $zip_compression = 'none'; // none (store), deflate, lzma2 (xz)
-                        $zip_compression == 'deflate' ? $c = ZipArchive::CM_DEFLATE : ($zip_compression == 'lzma2' ? $c = ZipArchive::CM_XZ : $c = ZipArchive::CM_STORE);
+                        // ZIP compression level | '0': none (store), '1': deflate, '2': lzma2 (xz)
+                        FM_ZIP_COMPRESSION == '1' ? $c = ZipArchive::CM_DEFLATE : (FM_ZIP_COMPRESSION == '2' ? $c = ZipArchive::CM_XZ : $c = ZipArchive::CM_STORE);
                         if (method_exists('ZipArchive', 'setCompressionName')) {
                             $this->zip->setCompressionName($path . '/' . $file, $c); // CM_STORE, CM_DEFLATE, CM_XZ
                         }
@@ -3627,10 +3660,10 @@ class FM_Zipper_Tar
                 if (!$this->addFileOrDir($f)) {
                     return false;
                 }
-                // TAR compression level
-                $tar_compression = 'none'; // none, zlib (GZ), bz2 (BZ2)
-                $tar_compression == 'zlib' ? $c = Phar::GZ : ($tar_compression == 'bz2' ? $c = Phar::BZ2 : $c = Phar::NONE);
-                if (extension_loaded($tar_compression)) {
+                // TAR compression level | '0': none, '1': zlib (GZ), '2': bz2 (BZ2)
+                FM_ZIP_COMPRESSION == '1' ? $c = Phar::GZ : (FM_ZIP_COMPRESSION == '2' ? $c = Phar::BZ2 : $c = Phar::NONE);
+                FM_ZIP_COMPRESSION == '1' ? $tar_extension = 'zlib' : (FM_ZIP_COMPRESSION == '2' ? $tar_extension = 'bz2' : $tar_extension = 'none');
+                if (extension_loaded($tar_extension)) {
                     $this->tar->compress($c); // NONE, GZ, BZ2
                     //unlink($filename);
                     unset($this->tar);
