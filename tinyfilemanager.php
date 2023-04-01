@@ -1188,12 +1188,13 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
             $buffer_size = 4096;
             $out_file_name = pathinfo($zip_path, PATHINFO_FILENAME);
             $file = gzopen($zip_path, 'rb');
-            $out_file = fopen($path . '/' . $out_file_name, 'wb'); 
-            while (!gzeof($file)) {
-                fwrite($out_file, gzread($file, $buffer_size));
+            if($out_file = fopen($path . '/' . $out_file_name, 'wb')) {
+                while (!gzeof($file)) {
+                    fwrite($out_file, gzread($file, $buffer_size));
+                }
+                gzclose($file);
+                $res = fclose($out_file);
             }
-            gzclose($file);
-            $res = fclose($out_file);
         }
 
         if ($res) {
