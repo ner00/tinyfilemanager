@@ -1,6 +1,6 @@
 <?php
 //Default Configuration
-$CONFIG = '{"lang":"en","error_reporting":false,"show_hidden":false,"hide_Cols":false,"csv_as_table":true,"calc_folder":false,"zip_compression":"0","theme":"light"}';
+$CONFIG = '{"lang":"en","error_reporting":false,"show_hidden":false,"hide_Cols":false,"csv_as_table":true,"calc_folder":false,"max_gztarball_size_scan_info_mbytes":"128","zip_compression":"0","theme":"light"}';
 
 /**
  * H3K | Tiny File Manager V2.5.3
@@ -200,6 +200,11 @@ $csv_as_table = isset($cfg->data['csv_as_table']) ? $cfg->data['csv_as_table'] :
 
 // Calculate folder size (slower)
 $calc_folder = isset($cfg->data['calc_folder']) ? $cfg->data['calc_folder'] : true;
+
+// Maximum size for compressed tarball info scanning
+$max_gztarball_size_scan_info_mbytes = isset($cfg->data['max_gztarball_size_scan_info_mbytes']) ? $cfg->data['max_gztarball_size_scan_info_mbytes'] : '128';
+
+define('FM_MAX_GZTARBALL_SIZE_SCAN_INFO_MBYTES', $max_gztarball_size_scan_info_mbytes);
 
 // ZIP compression
 $zip_compression = isset($cfg->data['zip_compression']) ? $cfg->data['zip_compression'] : '0';
@@ -576,7 +581,7 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
 
     // Save Config
     if (isset($_POST['type']) && $_POST['type'] == "settings") {
-        global $cfg, $lang, $report_errors, $show_hidden_files, $lang_list, $hide_Cols, $csv_as_table, $calc_folder, $zip_compression, $theme;
+        global $cfg, $lang, $report_errors, $show_hidden_files, $lang_list, $hide_Cols, $csv_as_table, $calc_folder, $max_gztarball_size_scan_info_mbytes, $zip_compression, $theme;
         $newLng = $_POST['js-language'];
         fm_get_translations([]);
         if (!array_key_exists($newLng, $lang_list)) {
@@ -588,6 +593,7 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
         $hco = isset($_POST['js-hide-cols']) && $_POST['js-hide-cols'] == "true" ? true : false;
         $cat = isset($_POST['js-csv-as-table']) && $_POST['js-csv-as-table'] == "true" ? true : false;
         $caf = isset($_POST['js-calc-folder']) && $_POST['js-calc-folder'] == "true" ? true : false;
+        $mts = isset($_POST['js-max-gztarball-size-scan-info-mbytes']) && is_numeric($_POST['js-max-gztarball-size-scan-info-mbytes']) ? $_POST['js-max-gztarball-size-scan-info-mbytes'] : "128";
         $zco = $_POST['js-zip-compression'];
         $te3 = $_POST['js-theme-3'];
 
@@ -618,6 +624,10 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
         if ($cfg->data['calc_folder'] != $caf) {
             $cfg->data['calc_folder'] = $caf;
             $calc_folder = $caf;
+        }
+        if ($cfg->data['max_gztarball_size_scan_info_mbytes'] != $mts) {
+            $cfg->data['max_gztarball_size_scan_info_mbytes'] = $mts;
+            $max_gztarball_size_scan_info_mbytes = $mts;
         }
         if ($cfg->data['zip_compression'] != $zco) {
             $cfg->data['zip_compression'] = $zco;
@@ -1654,6 +1664,13 @@ if (isset($_GET['settings']) && !FM_READONLY) {
                             <div class="form-check form-switch">
                               <input class="form-check-input" type="checkbox" role="switch" id="js-calc-folder" name="js-calc-folder" value="true" <?php echo $calc_folder ? 'checked' : ''; ?> />
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label for="js-max-gztarball-size-scan-info-mbytes" class="col-sm-3 col-form-label" title="Compressed tarballs bigger than this size will not be scanned due to performance reasons"><?php echo lng('Max. compressed tarball scan (MB)') ?></label>
+                        <div class="col-sm-9">
+                            <input class="form-control" style="width: 6rem;" type="text" minlength="1" maxlength="6" pattern="[0-9]*" id="js-max-gztarball-size-scan-info-mbytes" name="js-max-gztarball-size-scan-info-mbytes" value="<?php echo isset($max_gztarball_size_scan_info_mbytes) ? $max_gztarball_size_scan_info_mbytes : "128"; ?>" title="Compressed tarballs bigger than this size will not be scanned due to performance reasons"/>
                         </div>
                     </div>
 
@@ -2902,29 +2919,45 @@ function fm_get_zif_info($path, $ext) {
             return $filenames;
         }
     } elseif(($ext == 'tar' || $ext == 'tgz' || substr($path, -7) == '.tar.gz' || substr($path, -8) == '.tar.bz2') && class_exists('PharData')) {
-        $archive = new PharData($path);
-        $filenames = array();
-        foreach(new RecursiveIteratorIterator($archive) as $file) {
-            $parent_info = $file->getPathInfo();
-            $zip_name = str_replace("phar://".$path, '', $file->getPathName());
-            $zip_name = substr($zip_name, ($pos = strpos($zip_name, '/')) !== false ? $pos + 1 : 0);
-            //$zip_folder = $parent_info->getFileName(); // not working for some reason
-            $zip_folder = pathinfo($zip_name, PATHINFO_DIRNAME); // get folder from path
-            if(!in_array($zip_folder, array_column($filenames, 'folder'))) {
-                $filenames [] = array_merge($filenames, array( // push folder into array
-                    'name' => $zip_folder,
-                    'filesize' => null,
-                    'compressed_size' => null,
-                    'folder' => $zip_folder
-                ));
+        if (round(fm_get_size($path)/1024/1024) > FM_MAX_GZTARBALL_SIZE_SCAN_INFO_MBYTES && ($ext == 'tgz' || substr($path, -7) == '.tar.gz' || substr($path, -8) == '.tar.bz2')) {
+            if($tarball = fopen($path, 'r')) { // Get uncompressed filesize
+                fseek($tarball, -4, SEEK_END);
+                if(strlen($datum = @fread($tarball, 4))==4) {
+                    extract(unpack('Vtarballfs', $datum));
+                }
+                fclose($tarball);
             }
-            $zip_info = new SplFileInfo($file);
             $filenames[] = array(
-                'name' => $zip_name,
-                'filesize' => $zip_info->getSize(),
-                'compressed_size' => $file->getCompressedSize(),
-                'folder' => null //$zip_folder
+                'name' => pathinfo($path, PATHINFO_FILENAME),
+                'filesize' => $tarballfs,
+                'compressed_size' => $tarballfs,
+                'folder' => null
             );
+        } else {
+            $archive = new PharData($path);
+            $filenames = array();
+            foreach(new RecursiveIteratorIterator($archive) as $file) {
+                $parent_info = $file->getPathInfo();
+                $zip_name = str_replace("phar://".$path, '', $file->getPathName());
+                $zip_name = substr($zip_name, ($pos = strpos($zip_name, '/')) !== false ? $pos + 1 : 0);
+                //$zip_folder = $parent_info->getFileName(); // not working for some reason
+                $zip_folder = pathinfo($zip_name, PATHINFO_DIRNAME); // get folder from path
+                if(!in_array($zip_folder, array_column($filenames, 'folder'))) {
+                    $filenames [] = array_merge($filenames, array( // push folder into array
+                        'name' => $zip_folder,
+                        'filesize' => null,
+                        'compressed_size' => null,
+                        'folder' => $zip_folder
+                    ));
+                }
+                $zip_info = new SplFileInfo($file);
+                $filenames[] = array(
+                    'name' => $zip_name,
+                    'filesize' => $zip_info->getSize(),
+                    'compressed_size' => $file->getCompressedSize(),
+                    'folder' => null //$zip_folder
+                );
+            }
         }
         return $filenames;
     } elseif($ext == 'gz') {
