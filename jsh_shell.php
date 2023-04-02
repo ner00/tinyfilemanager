@@ -401,7 +401,20 @@ print_external('js-bootstrap');
  jQuery(function($) {
      var config = <?= json_encode(array_merge($config, array('password' => isset($config['password']) && $config['password'] != ''))) ?>;
      //var cwd = config.root;
-     var cwd = <?php if (isset($_GET['p'])) echo "'$_SERVER[DOCUMENT_ROOT]/$_GET[p]/'"; else echo 'config.root'; ?>;
+     //var cwd = <?php if (isset($_GET['p']) && $_GET['p'] != '') echo "'$_SERVER[DOCUMENT_ROOT]/$_GET[p]'"; else echo 'config.root'; ?>;
+     <?php
+     // Try to build shell path with proper slashes depending on OS
+     if (isset($_GET['p']) && $_GET['p'] != '') {
+         if (substr(getcwd(), 0, 1) == '/') $bad_ds = '\\\\'; else $bad_ds = '/';
+         if (DIRECTORY_SEPARATOR == '/') $ds = '/'; else $ds = '\\\\';
+         $docroot = str_replace($bad_ds, $ds, $_SERVER['DOCUMENT_ROOT']);
+         $get_p = str_replace($bad_ds, $ds, $_GET['p']);
+         $shell_path = $docroot . $ds . $get_p;
+         ?> var cwd = <?php echo "'$shell_path'"; ?>;<?php
+     } else {
+         ?> var cwd = config.root; <?php
+     }
+     ?>
      // --------------------------------------------------------------------------------------------
      function init(term, token) {
          function sql_result(result) {
