@@ -985,6 +985,28 @@ if (isset($_GET['dl'], $_POST['token'])) {
     }
 }
 
+// Checksum
+if (isset($_GET['checksum'], $_POST['token'])) {
+    if(!verifyToken($_POST['token'])) {
+        fm_set_msg("Invalid Token.", 'error');
+    }
+
+    $file = urldecode($_GET['checksum']);
+    if (stripos(pathinfo($_GET['checksum'], PATHINFO_FILENAME), '+') !== false) $file = rawurldecode($_GET['checksum']); // if filename has plus sign;
+    $file = fm_clean_path($file);
+    $file = str_replace('/', '', $file);
+    $path = FM_ROOT_PATH;
+    if (FM_PATH != '') {
+        $path .= '/' . FM_PATH;
+    }
+    if ($file != '' && is_file($path . '/' . $file) && $hash = hash_file('crc32b', $path . '/' . $file)) {
+        fm_set_msg(sprintf('<b>%s</b> CRC32 is <b>%s</b>', $file, strtoupper($hash)));
+    } else {
+        fm_set_msg(lng('File not found'), 'error');
+    }
+    $FM_PATH=FM_PATH; fm_redirect(FM_SELF_URL . '?p=' . urlencode($FM_PATH));
+}
+
 // Upload
 if (!empty($_FILES) && !FM_READONLY) {
     if(isset($_POST['token'])) {
@@ -2391,6 +2413,7 @@ $tableTheme = (FM_THEME == "dark") ? "text-white bg-dark table-dark" : "bg-white
                         <?php endif; ?>
                         <a title="<?php echo lng('DirectLink') ?>" href="<?php echo fm_enc(FM_ROOT_URL . (FM_PATH != '' ? '/' . FM_PATH : '') . '/' . $f) ?>" target="_blank"><i class="fa fa-link"></i></a>
                         <a title="<?php echo lng('Download') ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;dl=<?php echo urlencode($f) ?>" onclick="confirmDailog(event, 1211, '<?php echo lng('Download'); ?>','<?php echo urlencode($f); ?>', this.href);"><i class="fa fa-download"></i></a>
+                        <a title="<?php echo lng('Checksum') ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;checksum=<?php echo urlencode($f) ?>" onclick="confirmDailog(event, 1212, '<?php echo lng('Checksum').' '.lng('File'); ?>','<?php echo urlencode($f) . " ($filesize)"; ?>', this.href);"><i class="fa fa-hashtag"></i></a>
                     </td>
                 </tr>
                 <?php
