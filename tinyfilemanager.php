@@ -18,6 +18,22 @@ define('APP_TITLE', 'Tiny File Manager');
 
 // --- EDIT BELOW CONFIGURATION CAREFULLY ---
 
+// Memory allocation
+$new_memory_limit = '2048M';
+$new_memory_limit_unit = substr($new_memory_limit, -1);
+$new_memory_limit_value = explode($new_memory_limit_unit, $new_memory_limit)[0];
+$current_memory_limit = ini_get('memory_limit');
+$current_memory_limit_unit = substr($current_memory_limit, -1);
+$current_memory_limit_value = explode($current_memory_limit_unit, $current_memory_limit)[0];
+if ($current_memory_limit_unit == 'M' && $new_memory_limit_unit == 'G') {
+    $current_memory_limit_value = round($current_memory_limit_value/1024);
+} elseif ($current_memory_limit_unit == 'G' && $new_memory_limit_unit == 'M') {
+    $current_memory_limit_value = round($current_memory_limit_value*1024);
+}
+if ($current_memory_limit_value < $new_memory_limit_value) {
+    ini_set('memory_limit', $new_memory_limit);
+}
+
 // Auth with login/password
 // set true/false to enable/disable it
 // Is independent from IP white- and blacklisting
@@ -3934,6 +3950,9 @@ function fm_show_nav_path($path)
                         <div class="dropdown-menu text-small shadow <?php echo fm_get_theme(); ?>" aria-labelledby="navbarDropdownMenuLink-5">
                             <?php if (!FM_READONLY): ?>
                             <a title="<?php echo lng('Settings') ?>" class="dropdown-item nav-link" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;settings=1"><i class="fa fa-cog" aria-hidden="true"></i> <?php echo lng('Settings') ?></a>
+                            <?php if (file_exists('phpsysinfo/index.php')) { ?>
+                            <a title="<?php echo lng('phpSysInfo') ?>" class="dropdown-item nav-link" href="phpsysinfo/" target="_blank"><i class="fa fa-bar-chart" aria-hidden="true"></i> <?php echo lng('phpSysInfo') ?></a>
+                            <?php } ?>
                             <?php endif ?>
                             <a title="<?php echo lng('Help') ?>" class="dropdown-item nav-link" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;help=2"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> <?php echo lng('Help') ?></a>
                             <a title="<?php echo lng('Logout') ?>" class="dropdown-item nav-link" href="?logout=1"><i class="fa fa-sign-out" aria-hidden="true"></i> <?php echo lng('Logout') ?></a>
