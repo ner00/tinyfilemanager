@@ -3947,7 +3947,7 @@ function fm_show_nav_path($path)
                     <?php if (FM_USE_AUTH): ?>
                     <li class="nav-item avatar dropdown">
                         <a class="nav-link dropdown-toggle" id="navbarDropdownMenuLink-5" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"> <i class="fa fa-user-circle"></i> <?php if(isset($_SESSION[FM_SESSION_ID]['logged'])) { echo $_SESSION[FM_SESSION_ID]['logged']; } ?></a>
-                        <div class="dropdown-menu text-small shadow <?php echo fm_get_theme(); ?>" aria-labelledby="navbarDropdownMenuLink-5">
+                        <div class="dropdown-menu text-small shadow <?php echo fm_get_theme(); ?>" aria-labelledby="navbarDropdownMenuLink-5" <?php if (file_exists('phpsysinfo/index.php')) echo 'style="left:-5px;"'; ?>>
                             <?php if (!FM_READONLY): ?>
                             <a title="<?php echo lng('Settings') ?>" class="dropdown-item nav-link" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;settings=1"><i class="fa fa-cog" aria-hidden="true"></i> <?php echo lng('Settings') ?></a>
                             <?php if (file_exists('phpsysinfo/index.php')) { ?>
