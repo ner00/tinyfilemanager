@@ -1,4 +1,5 @@
 <?php
+if (file_exists('../fm_pseudo_session.php')) require_once('../fm_pseudo_session.php');
 /**
  * start page for webaccess
  * redirect the user to the supported page type by the users webbrowser (js available or not)
