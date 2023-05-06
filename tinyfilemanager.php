@@ -2112,7 +2112,7 @@ if (isset($_GET['edit']) && !FM_READONLY) {
         ?>
     </div>
 
-    // Prevent leaving/closing editor if changes are pending
+    <!-- Prevent leaving/closing editor if changes are pending -->
     <script>
     function setFileDirty(status) {
         //console.log("setFileDirty", status);
