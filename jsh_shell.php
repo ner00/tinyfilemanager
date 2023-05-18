@@ -2,14 +2,14 @@
 if (file_exists('fm_pseudo_session.php')) require_once('fm_pseudo_session.php');
 if (!defined('APP_TITLE') || APP_TITLE != 'Tiny File Manager') die('This shell must be run from inside TFM!');
 /*
- * Single file, terminal like php shell version 0.2.5
+ * Single file, terminal like php shell version 0.2.6
  *
  * https://github.com/jcubic/jsh.php
  *
- * Copyright (c) 2017-2022 Jakub T. Jankiewicz <https://jcubic.pl/me>
+ * Copyright (c) 2017-2023 Jakub T. Jankiewicz <https://jcubic.pl/me>
  * Released under the MIT license
  */
-define('VERSION_JSH_SHELL', '0.2.4');
+define('VERSION_JSH_SHELL', '0.2.6');
 //ini_set('display_errors', 1);
 //ini_set('display_startup_errors', 1);
 //error_reporting(E_ERROR | E_WARNING | E_PARSE | E_NOTICE);
@@ -130,6 +130,12 @@ class App {
     public function command($command, $path, $shell_fn) {
         if (!method_exists($this, $shell_fn)) {
             throw new Exception("Invalid shell '$shell_fn'");
+        }
+        if (empty(trim($command))) {
+            return array(
+                'output' => '',
+                'cwd' => $path
+            );
         }
         $marker = 'XXXX' . md5(time());
         if ($this->config->is_windows) {
@@ -724,7 +730,7 @@ print_external('js-bootstrap');
                  var cmd = $.terminal.parse_command(command);
                  if (typeof commands[cmd.name] == 'function') {
                      commands[cmd.name](cmd);
-                 } else {
+                 } else if (command.trim()) {
                      term.pause();
                      shell(command).then(function(data) {
                          if (data.error) {
@@ -849,7 +855,7 @@ print_external('js-bootstrap');
                  $.terminal.defaults.formatters = last;
              }
          },
-         greetings: 'jsh shell v. <?= VERSION_JSH_SHELL ?>',
+         greetings: 'jsh shell v. <?= VERSION_JSH_SHELL ?>\n',
          prompt: 'password: ',
          onInit: function(term) {
              term.set_mask(true);
