@@ -373,10 +373,12 @@ if ($use_auth) {
                     // Generate random OTP secret, manually add/replace entry inside '$otp_secrets' array
                     if ($generate_secret_on_login) {
                         $random_Base32_InitKey = Google2FA::generate_secret_key(56);
-                        //$qr_gen_api = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&ecc=L&data=otpauth://totp/$_POST[fm_usr]@tinyfilemanager?secret=$random_Base32_InitKey&algorithm=SHA1&digits=6&period=30";
-                        $qr_gen_api = "https://chart.googleapis.com/chart?cht=qr&chs=200x200&chld=L|0&chl=otpauth://totp/$_POST[fm_usr]@tinyfilemanager?secret=$random_Base32_InitKey&algorithm=SHA1&digits=6&period=30";
+                        $otp_uri = urlencode("otpauth://totp/TFM:$_POST[fm_usr]@$_SERVER[SERVER_NAME]?secret=$random_Base32_InitKey&issuer=TFM&algorithm=SHA1&digits=6&period=30");
+                        //$qr_gen_api = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&ecc=L&data=";
+                        $qr_gen_api = "https://chart.googleapis.com/chart?cht=qr&chs=200x200&chld=L|0&chl=";
+                        $qr_code = $qr_gen_api . $otp_uri;
                         echo '<h1>New OTP secret generated!</h1>Add the secret below to the <code>$otp_secrets</code> array and scan the QR code to add it to your personal 2FA vault.<br>Before reloading this page, set &nbsp;<code>$generate_secret_on_login = false</code><br><br>';
-                        echo "<code>'$_POST[fm_usr]' => '$random_Base32_InitKey'</code><br></br><img src=\"$qr_gen_api\">";
+                        echo "<code>'$_POST[fm_usr]' => '$random_Base32_InitKey'</code><br></br><img src=\"$qr_code\">";
                         unset($_SESSION[FM_SESSION_ID]['logged']);
                         exit;
                     }
@@ -444,7 +446,7 @@ if ($use_auth) {
                                         <input type="password" class="form-control" id="fm_pwd" name="fm_pwd" required>
                                     </div>
 
-                                    <?php if (file_exists('2fa.class.php')) { ?>
+                                    <?php if (file_exists('2fa.class.php') && !$generate_secret_on_login) { ?>
                                     <div class="mb-3">
                                         <label for="otp" class="pb-2"><?php echo lng('2FA'); ?></label>
                                         <input type="text" class="form-control" id="otp" name="otp" inputmode="numeric" maxlength="6" pattern="\d{6}" autocomplete="off" required>
