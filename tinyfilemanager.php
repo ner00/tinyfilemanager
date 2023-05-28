@@ -378,7 +378,7 @@ if ($use_auth) {
                         $qr_gen_api = "https://chart.googleapis.com/chart?cht=qr&chs=200x200&chld=L|0&chl=";
                         $qr_code = $qr_gen_api . $otp_uri;
                         echo '<h1>New OTP secret generated!</h1>Add the secret below to the <code>$otp_secrets</code> array and scan the QR code to add it to your personal 2FA vault.<br>Before reloading this page, set &nbsp;<code>$generate_secret_on_login = false</code><br><br>';
-                        echo "<code>'$_POST[fm_usr]' => '$random_Base32_InitKey'</code><br></br><img src=\"$qr_code\">";
+                        echo "<code>'$_POST[fm_usr]' => '$random_Base32_InitKey'</code><br><br><br>".'<img src="'.$qr_code.'" alt="QR Code" width="200px" height="200px" style="box-shadow:0 0 10px 0 rgba(0, 0, 0, 0.4);background-color:rgba(0, 0, 0, 0.1);">';
                         unset($_SESSION[FM_SESSION_ID]['logged']);
                         exit;
                     }
@@ -2020,6 +2020,7 @@ if (isset($_GET['view'])) {
                         'phtml' => 'php',
                         'lock' => 'json',
                         'svg' => 'xml',
+                        'htm' => 'html',
                     );
                     $hljs_class = isset($hljs_classes[$ext]) ? 'lang-' . $hljs_classes[$ext] : 'lang-' . $ext;
                     if (empty($ext) || in_array(strtolower($file), fm_get_text_names()) || preg_match('#\.min\.(css|js)$#i', $file)) {
