@@ -4171,10 +4171,19 @@ global $lang, $root_url, $favicon_path;
 if ($("#otp").length) {
     $("#otp").keyup(function() {
         if($("#otp").val().length >= 6) {
+            document.getElementById('otp').setAttribute('readonly', true);
             $(".form-signin").submit();
         }
     });
 }
+
+// Prevent multiple form submissions
+$("body").on("submit", "form", function() {
+    $(this).submit(function() {
+        return false;
+    });
+    return true;
+});
 </script>
 </body>
 </html>
