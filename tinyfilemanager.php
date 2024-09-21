@@ -3256,8 +3256,6 @@ function fm_get_file_icon_class($path)
         case 'map':
         case 'lock':
         case 'dtd':
-            $img = 'fa fa-file-code-o';
-            break;
         case 'ps1':
             $img = 'fa fa-file-code-o';
             break;
