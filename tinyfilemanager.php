@@ -3,15 +3,14 @@
 $CONFIG = '{"lang":"en","error_reporting":false,"show_hidden":false,"hide_Cols":false,"use_2FA":false,"csv_as_table":true,"calc_folder":false,"max_gztarball_size_scan_info_mbytes":"128","zip_compression":"0","theme":"light"}';
 
 /**
- * H3K | Tiny File Manager V2.5.3
+ * H3K - Tiny File Manager V2.5.5
  * @author CCP Programmers
- * @email ccpprogrammers@gmail.com
  * @github https://github.com/prasathmani/tinyfilemanager
  * @link https://tinyfilemanager.github.io
  */
 
 //TFM version
-define('VERSION', '2.5.3');
+define('VERSION', '2.5.5');
 
 //Application Title
 define('APP_TITLE', 'Tiny File Manager');
@@ -127,7 +126,7 @@ $exclude_items_users = array(
 );
 
 // Online office Docs Viewer
-// Availabe rules are 'google', 'microsoft' or false
+// Available rules are 'google', 'microsoft' or false
 // Google => View documents using Google Docs Viewer
 // Microsoft => View documents using Microsoft Web Apps Viewer
 // false => disable online doc viewer
@@ -1009,24 +1008,39 @@ if (isset($_POST['rename_from'], $_POST['rename_to'], $_POST['token']) && !FM_RE
 
 // Download
 if (isset($_GET['dl'], $_POST['token'])) {
-    if(!verifyToken($_POST['token'])) {
+    // Verify the token to ensure it's valid
+    if (!verifyToken($_POST['token'])) {
         fm_set_msg("Invalid Token.", 'error');
+        exit;
     }
 
+    // Clean the download file path
     $dl = urldecode($_GET['dl']);
     if (stripos(pathinfo($_GET['dl'], PATHINFO_FILENAME), '+') !== false) $dl = rawurldecode($_GET['dl']); // if filename has plus sign;
     $dl = fm_clean_path($dl);
-    $dl = str_replace('/', '', $dl);
+    $dl = str_replace('/', '', $dl); // Prevent directory traversal attacks
+
+    // Define the file path
     $path = FM_ROOT_PATH;
     if (FM_PATH != '') {
         $path .= '/' . FM_PATH;
     }
+
+    // Check if the file exists and is valid
     if ($dl != '' && is_file($path . '/' . $dl)) {
-        fm_download_file($path . '/' . $dl, $dl, 1024);
+        // Close the session to prevent session locking
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        // Call the download function
+        fm_download_file($path . '/' . $dl, $dl, 1024); // Download with a buffer size of 1024 bytes
         exit;
     } else {
+        // Handle the case where the file is not found
         fm_set_msg(lng('File not found'), 'error');
-        $FM_PATH=FM_PATH; fm_redirect(FM_SELF_URL . '?p=' . urlencode($FM_PATH));
+        $FM_PATH = FM_PATH;
+        fm_redirect(FM_SELF_URL . '?p=' . urlencode($FM_PATH));
     }
 }
 
@@ -1192,6 +1206,56 @@ if (!empty($_FILES) && !FM_READONLY) {
     // Return the response
     echo json_encode($response);
     exit();
+}
+
+// Mass downloading
+if (isset($_POST['group'], $_POST['download'], $_POST['token']) && !FM_READONLY) {
+
+    // Verify token to ensure it's valid
+    if(!verifyToken($_POST['token'])) {
+        fm_set_msg(lng("Invalid Token."), 'error');
+        exit;
+    }
+
+    $path = FM_ROOT_PATH;
+    if (FM_PATH != '') {
+        $path .= '/' . FM_PATH;
+    }
+
+    $files = $_POST['file']; // List of selected files
+    if (is_array($files) && count($files)) {
+        // Create a new ZIP archive
+        $zip = new FM_Zipper();
+        $zip_filename = 'download_' . date('Y-m-d_H-i-s') . '.zip';
+        $zip_filepath = sys_get_temp_dir() . '/' . $zip_filename;
+
+        chdir($path);
+        $sanitized_filepaths = array();
+        foreach($files as $f){
+            if ($f != '') {
+                array_push($sanitized_filepaths, fm_clean_path($f)); // Sanitize the file path
+            }
+        }
+        $res = $zip->create($zip_filepath, $sanitized_filepaths);
+
+        if ($res && file_exists($zip_filepath)) {
+            // Serve the ZIP file for download
+            header('Content-Type: application/zip');
+            header('Content-Disposition: attachment; filename="' . $zip_filename . '"');
+            header('Content-Length: ' . filesize($zip_filepath));
+            readfile($zip_filepath);
+            // Remove the ZIP file from the temporary directory after download
+            unlink($zip_filepath);
+            exit;
+        } else {
+            fm_set_msg(lng('Error creating ZIP file'), 'error');
+        }
+    } else {
+        fm_set_msg(lng('Nothing selected'), 'alert');
+    }
+
+    $FM_PATH = FM_PATH;
+    fm_redirect(FM_SELF_URL . '?p=' . urlencode($FM_PATH));
 }
 
 // Mass deleting
@@ -1976,9 +2040,12 @@ if (isset($_GET['view'])) {
             <div class="d-flex align-items-center mb-3">
                 <form method="post" class="d-inline ms-2" action="?p=<?php echo urlencode(FM_PATH) ?>&amp;dl=<?php echo urlencode($file) ?>">
                     <input type="hidden" name="token" value="<?php echo $_SESSION['token']; ?>">
-                    <button type="submit" class="btn btn-link text-decoration-none fw-bold p-0"><i class="fa fa-cloud-download"></i> <?php echo lng('Download') ?></button> &nbsp;
-                </form>
-                <b class="ms-2"><a href="<?php echo fm_enc($file_url) ?>" target="_blank"><i class="fa fa-external-link-square"></i> <?php echo lng('Open') ?></a></b>
+                    <button type="submit" class="btn btn-link text-decoration-none fw-bold p-0"><i class="fa fa-cloud-download"></i> <?php echo lng('Download') ?></button>
+                </form>&nbsp;&nbsp;
+                <?php if (!FM_READONLY): ?>
+                <a class="fw-bold" title="<?php echo lng('Delete') ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;del=<?php echo urlencode($file) ?>" onclick="confirmDailog(event, 1209, '<?php echo lng('Delete').' '.lng('File'); ?>','<?php echo urlencode($file); ?>', this.href);"> <i class="fa fa-trash"></i> Delete</a>&nbsp;
+                <?php endif; ?>
+                <a class="fw-bold ms-2" href="<?php echo fm_enc($file_url) ?>" target="_blank"><i class="fa fa-external-link-square"></i> <?php echo lng('Open') ?></a></b>&nbsp;
                 <?php
                 // ZIP actions
                 if (!FM_READONLY && ($is_zip || $is_gzip) && $filenames !== false) {
@@ -1999,13 +2066,13 @@ if (isset($_GET['view'])) {
                 }
                 if (($is_text || $is_csv) && !FM_READONLY) {
                     ?>
-                    <b class="ms-2"><a href="?p=<?php echo urlencode(trim(FM_PATH)) ?>&amp;edit=<?php echo urlencode($file) ?>" class="edit-file"><i class="fa fa-pencil-square"></i> <?php echo lng('Edit') ?>
-                        </a></b> &nbsp;
-                    <b class="ms-2"><a href="?p=<?php echo urlencode(trim(FM_PATH)) ?>&amp;edit=<?php echo urlencode($file) ?>&env=ace"
-                            class="edit-file"><i class="fa fa-pencil-square-o"></i> <?php echo lng('AdvancedEditor') ?>
-                        </a></b> &nbsp;
+                    <a class="fw-bold ms-2" href="?p=<?php echo urlencode(trim(FM_PATH)) ?>&amp;edit=<?php echo urlencode($file) ?>" class="edit-file"><i class="fa fa-pencil-square"></i> <?php echo lng('Edit') ?>
+                        </a>&nbsp;
+                    <a class="fw-bold ms-2" href="?p=<?php echo urlencode(trim(FM_PATH)) ?>&amp;edit=<?php echo urlencode($file) ?>&env=ace"
+                            class="edit-file"><i class="fa fa-pencil-square"></i> <?php echo lng('AdvancedEditor') ?>
+                    </a>&nbsp;
                 <?php } ?>
-                <b class="ms-2"><a href="?p=<?php echo urlencode(FM_PATH) ?>"><i class="fa fa-chevron-circle-left go-back"></i> <?php echo lng('Back') ?></a></b>
+                <a class="fw-bold ms-2" href="?p=<?php echo urlencode(FM_PATH) ?>"><i class="fa fa-chevron-circle-left go-back"></i> <?php echo lng('Back') ?></a>
             </div>
             <?php
             if($is_onlineViewer) {
@@ -2546,6 +2613,8 @@ $tableTheme = (FM_THEME == "dark") ? "text-white bg-dark table-dark" : "bg-white
                 <li class="list-inline-item"> <a href="#/select-all" class="btn btn-small btn-outline-primary btn-2" onclick="select_all();return false;"><i class="fa fa-check-square"></i> <?php echo lng('SelectAll') ?> </a></li>
                 <li class="list-inline-item"><a href="#/unselect-all" class="btn btn-small btn-outline-primary btn-2" onclick="unselect_all();return false;"><i class="fa fa-window-close"></i> <?php echo lng('UnSelectAll') ?> </a></li>
                 <li class="list-inline-item"><a href="#/invert-all" class="btn btn-small btn-outline-primary btn-2" onclick="invert_all();return false;"><i class="fa fa-th-list"></i> <?php echo lng('InvertSelection') ?> </a></li>
+                <li class="list-inline-item"><input type="submit" class="hidden" name="download" id="a-download" value="Download" onclick="return confirm('<?php echo lng('Download selected files and folders?'); ?>')">
+                    <a href="javascript:document.getElementById('a-download').click();" class="btn btn-small btn-outline-primary btn-2"><i class="fa fa-download"></i> <?php echo lng('Download') ?> </a></li>
                 <li class="list-inline-item"><input type="submit" class="hidden" name="delete" id="a-delete" value="Delete" onclick="return confirm('<?php echo lng('Delete selected files and folders?'); ?>')">
                     <a href="javascript:document.getElementById('a-delete').click();" class="btn btn-small btn-outline-primary btn-2"><i class="fa fa-trash"></i> <?php echo lng('Delete') ?> </a></li>
                 <li class="list-inline-item"><input type="submit" class="hidden" name="zip" id="a-zip" value="zip" onclick="return confirm('<?php echo lng('Create archive?'); ?>')">
@@ -2554,7 +2623,6 @@ $tableTheme = (FM_THEME == "dark") ? "text-white bg-dark table-dark" : "bg-white
                     <a href="javascript:document.getElementById('a-tar').click();" class="btn btn-small btn-outline-primary btn-2"><i class="fa fa-file-archive-o"></i> <?php echo lng('Tar') ?> </a></li>
                 <li class="list-inline-item"><input type="submit" class="hidden" name="copy" id="a-copy" value="Copy">
                     <a href="javascript:document.getElementById('a-copy').click();" class="btn btn-small btn-outline-primary btn-2"><i class="fa fa-files-o"></i> <?php echo lng('Copy') ?> </a></li>
-                <li class="list-inline-item"><span onclick="downloadSelected()" class="btn btn-small btn-outline-primary btn-2"><i class="fa fa-download"></i> Download </span></li>
             </ul>
         </div>
         <div class="col-3 d-none d-sm-block"><a href="https://tinyfilemanager.github.io" target="_blank" class="float-right text-muted">Tiny File Manager <?php echo VERSION; ?></a></div>
@@ -2588,7 +2656,7 @@ function print_external($key) {
 }
 
 /**
- * Verify CSRF TOKEN and remove after cerify
+ * Verify CSRF TOKEN and remove after certified
  * @param string $token
  * @return bool
  */
@@ -3970,6 +4038,8 @@ class FM_Zipper_Tar
     function save()
     {
         $fm_file = __FILE__;
+        global $config_file;
+        $fm_file = is_readable($config_file) ? $config_file : __FILE__;
         $var_name = '$CONFIG';
         $var_value = var_export(json_encode($this->data), true);
         $config_string = "<?php" . chr(13) . chr(10) . "//Default Configuration".chr(13) . chr(10)."$var_name = $var_value;" . chr(13) . chr(10);
@@ -4215,7 +4285,7 @@ $isStickyNavBar = $sticky_navbar ? 'navbar-fixed' : 'navbar-normal';
     <meta name="robots" content="noindex, nofollow">
     <meta name="googlebot" content="noindex">
     <?php if($favicon_path) { echo '<link rel="icon" href="'.fm_enc($favicon_path).'" type="image/png">'; } ?>
-    <title><?php echo fm_enc(APP_TITLE) ?></title>
+    <title><?php echo isset($_GET['edit']) ? $_GET['edit'] : fm_enc(APP_TITLE); ?></title>
     <?php print_external('pre-jsdelivr'); ?>
     <?php print_external('pre-cloudflare'); ?>
     <?php print_external('css-bootstrap'); ?>
@@ -4652,26 +4722,6 @@ $isStickyNavBar = $sticky_navbar ? 'navbar-fixed' : 'navbar-normal';
     });
 </script>
 
-<!-- download Selected Files -->
-<script>
-    function downloadSelected() {
-        parent = $("input:checked").closest("tr");
-        child = parent.find("a[title='<?php echo lng('DirectLink')?>']");
-
-        var a = child;
-        for (var i = 0, iLen = a.length; i < iLen; i++) {
-            a[i].setAttribute("download", "");
-
-            if (a[i].click) {
-                a[i].click();
-            } else {
-                $(a[i]).click();
-            }
-
-            a[i].removeAttribute("download");
-        }
-    }
-</script>
 <?php if (isset($_GET['edit']) && isset($_GET['env']) && FM_EDIT_FILE && !FM_READONLY):
         
         $ext = pathinfo($_GET["edit"], PATHINFO_EXTENSION);
