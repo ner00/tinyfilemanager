@@ -23,6 +23,9 @@ $config = array(
 );
 
 class App {
+    public $config = '';
+    public $root = '';
+    public $path = '';
     function __construct($root, $path, $config) {
         $this->config = (object)$config;
         $this->root = $root;
