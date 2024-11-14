@@ -1341,6 +1341,7 @@ if (isset($_POST['group'], $_POST['token']) && (isset($_POST['zip']) || isset($_
         } elseif ($ext == 'tar') {
             $tar = new FM_Zipper_Tar();
             $res = $tar->create($zipname, $files);
+            FM_ZIP_COMPRESSION == '1' ? $zipname .= '.gz' : (FM_ZIP_COMPRESSION == '2' ? $zipname .= '.bz2' : null);
         }
 
         if ($res) {
@@ -3915,15 +3916,15 @@ class FM_Zipper_Tar
                 if (!$this->addFileOrDir($f)) {
                     return false;
                 }
-                // TAR compression level | '0': none, '1': zlib (GZ), '2': bz2 (BZ2)
-                FM_ZIP_COMPRESSION == '1' ? $c = Phar::GZ : (FM_ZIP_COMPRESSION == '2' ? $c = Phar::BZ2 : $c = Phar::NONE);
-                FM_ZIP_COMPRESSION == '1' ? $tar_extension = 'zlib' : (FM_ZIP_COMPRESSION == '2' ? $tar_extension = 'bz2' : $tar_extension = 'none');
-                if (extension_loaded($tar_extension)) {
-                    $this->tar->compress($c); // NONE, GZ, BZ2
-                    //unlink($filename);
-                    unset($this->tar);
-                    Phar::unlinkArchive($filename);
-                }
+            }
+            // TAR compression level | '0': none, '1': zlib (GZ), '2': bz2 (BZ2)
+            FM_ZIP_COMPRESSION == '1' ? $c = Phar::GZ : (FM_ZIP_COMPRESSION == '2' ? $c = Phar::BZ2 : $c = Phar::NONE);
+            FM_ZIP_COMPRESSION == '1' ? $tar_extension = 'zlib' : (FM_ZIP_COMPRESSION == '2' ? $tar_extension = 'bz2' : $tar_extension = 'none');
+            if (extension_loaded($tar_extension)) {
+                $this->tar->compress($c); // NONE, GZ, BZ2
+                //unlink($filename);
+                unset($this->tar);
+                Phar::unlinkArchive($filename);
             }
             return true;
         } else {
