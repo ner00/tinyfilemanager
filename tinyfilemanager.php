@@ -467,7 +467,7 @@ if ($use_auth) {
                                     <?php if ($use_2FA) { ?>
                                         <div class="mb-3">
                                             <label for="otp" class="pb-2"><?php echo lng('2FA'); ?></label>
-                                            <input type="text" class="form-control" id="otp" name="otp" inputmode="numeric" maxlength="6" pattern="\d{6}" autocomplete="off">
+                                            <input type="text" class="form-control" id="otp" name="otp" inputmode="numeric" maxlength="6" pattern="\d{6}" autocomplete="off" required>
                                         </div>
                                     <?php } ?>
 
@@ -2058,6 +2058,7 @@ if (isset($_GET['view'])) {
                 <li class="list-group-item active" aria-current="true"><strong><?php echo lng($view_title) ?>:</strong> <?php echo fm_enc(fm_convert_win($file)) ?></li>
                 <?php $display_path = fm_get_display_path($file_path); ?>
                 <li class="list-group-item"><strong><?php echo $display_path['label']; ?>:</strong> <?php echo $display_path['path']; ?></li>
+                <li class="list-group-item"><strong>Date Modified:</strong> <?php echo date(FM_DATETIME_FORMAT, filemtime($file_path)); ?></li>
                 <li class="list-group-item"><strong>File size:</strong> <?php echo ($filesize_raw <= 1000) ? "$filesize_raw bytes" : $filesize; ?></li>
                 <li class="list-group-item"><strong>MIME-type:</strong> <?php echo $mime_type ?></li>
                 <?php
