@@ -117,7 +117,7 @@ $allowed_upload_extensions = '';
 $favicon_path = '';
 
 // Files and folders to excluded from listing
-// e.g. array('myfile.html', 'personal-folder', '*.php', ...)
+// e.g. array('myfile.html', 'personal-folder', '*.php', '/path/to/folder', ...)
 $exclude_items = array();
 
 // Users excluded from listing excluded files and folders
@@ -1552,7 +1552,7 @@ $objects = is_readable($path) ? scandir($path) : array();
 $folders = array();
 $files = array();
 $current_path = array_slice(explode("/", $path), -1)[0];
-if (is_array($objects) && fm_is_exclude_items($current_path)) {
+if (is_array($objects) && fm_is_exclude_items($current_path, $path)) {
     foreach ($objects as $file) {
         if ($file == '.' || $file == '..') {
             continue;
@@ -1561,9 +1561,9 @@ if (is_array($objects) && fm_is_exclude_items($current_path)) {
             continue;
         }
         $new_path = $path . '/' . $file;
-        if (@is_file($new_path) && fm_is_exclude_items($file)) {
+        if (@is_file($new_path) && fm_is_exclude_items($file, $new_path)) {
             $files[] = $file;
-        } elseif (@is_dir($new_path) && $file != '.' && $file != '..' && fm_is_exclude_items($file)) {
+        } elseif (@is_dir($new_path) && $file != '.' && $file != '..' && fm_is_exclude_items($file, $new_path)) {
             $folders[] = $file;
         }
     }
@@ -1994,7 +1994,7 @@ if (isset($_GET['view'])) {
     $file = $_GET['view'];
     $file = fm_clean_path($file, false);
     $file = str_replace('/', '', $file);
-    if ($file == '' || !is_file($path . '/' . $file) || !fm_is_exclude_items($file) || (
+    if ($file == '' || !is_file($path . '/' . $file) || !fm_is_exclude_items($file, $path . '/' . $file) || (
         isset($exclude_items_users[$_SESSION[FM_SESSION_ID]['logged']]) &&
         in_array($file, $exclude_items_users[$_SESSION[FM_SESSION_ID]['logged']]))
     ){
@@ -2058,9 +2058,9 @@ if (isset($_GET['view'])) {
                 <li class="list-group-item active" aria-current="true"><strong><?php echo lng($view_title) ?>:</strong> <?php echo fm_enc(fm_convert_win($file)) ?></li>
                 <?php $display_path = fm_get_display_path($file_path); ?>
                 <li class="list-group-item"><strong><?php echo $display_path['label']; ?>:</strong> <?php echo $display_path['path']; ?></li>
-                <li class="list-group-item"><strong>Date Modified:</strong> <?php echo date(FM_DATETIME_FORMAT, filemtime($file_path)); ?></li>
-                <li class="list-group-item"><strong>File size:</strong> <?php echo ($filesize_raw <= 1000) ? "$filesize_raw bytes" : $filesize; ?></li>
-                <li class="list-group-item"><strong>MIME-type:</strong> <?php echo $mime_type ?></li>
+                <li class="list-group-item"><strong><?php echo lng('Date Modified') ?>:</strong> <?php echo date(FM_DATETIME_FORMAT, filemtime($file_path)); ?></li>
+                <li class="list-group-item"><strong><?php echo lng('File size') ?>:</strong> <?php echo ($filesize_raw <= 1000) ? "$filesize_raw bytes" : $filesize; ?></li>
+                <li class="list-group-item"><strong><?php echo lng('MIME-type') ?>:</strong> <?php echo $mime_type ?></li>
                 <?php
                 // ZIP info
                 if (($is_zip || $is_gzip) && $filenames !== false) {
@@ -2218,7 +2218,7 @@ if (isset($_GET['edit']) && !FM_READONLY) {
     $file = $_GET['edit'];
     $file = fm_clean_path($file, false);
     $file = str_replace('/', '', $file);
-    if ($file == '' || !is_file($path . '/' . $file) || !fm_is_exclude_items($file) || (
+    if ($file == '' || !is_file($path . '/' . $file) || !fm_is_exclude_items($file, $path . '/' . $file) || (
         isset($exclude_items_users[$_SESSION[FM_SESSION_ID]['logged']]) &&
         in_array($file, $exclude_items_users[$_SESSION[FM_SESSION_ID]['logged']]))
     ){
@@ -3050,12 +3050,13 @@ function fm_get_display_path($file_path)
 
 /**
  * Check file is in exclude list
- * @param string $file
+ * @param string $name The name of the file/folder
+ * @param string $path The full path of the file/folder
  * @return bool
  */
-function fm_is_exclude_items($file)
+function fm_is_exclude_items($name, $path)
 {
-    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
     if (isset($exclude_items) and sizeof($exclude_items)) {
         unset($exclude_items);
     }
@@ -3066,9 +3067,9 @@ function fm_is_exclude_items($file)
         $exclude_items = unserialize($exclude_items);
         $exclude_items_users = unserialize($exclude_items_users);
     }
-    if (in_array($file, $exclude_items) || in_array("*.$ext", $exclude_items) || (
+    if (in_array($name, $exclude_items) || in_array("*.$ext", $exclude_items) || in_array($path, $exclude_items) || (
         isset($exclude_items_users[$_SESSION[FM_SESSION_ID]['logged']]) && (
-        in_array($file, $exclude_items_users[$_SESSION[FM_SESSION_ID]['logged']]) ||
+        in_array($name, $exclude_items_users[$_SESSION[FM_SESSION_ID]['logged']]) ||
         in_array("*.$ext", $exclude_items_users[$_SESSION[FM_SESSION_ID]['logged']])))
     ){
         return false;
@@ -6154,6 +6155,9 @@ function fm_show_header_login()
         $tr['en']['File or folder with this path already exists']   = 'File or folder with this path already exists';
         $tr['en']['Are you sure want to rename?']                   = 'Are you sure want to rename?';
         $tr['en']['Are you sure want to']                           = 'Are you sure want to';
+        $tr['en']['Date Modified']                                  = 'Date Modified';
+        $tr['en']['File size']                                      = 'File size';
+        $tr['en']['MIME-type']                                      = 'MIME-type';
 
         $i18n = fm_get_translations($tr);
         $tr = $i18n ? $i18n : $tr;
